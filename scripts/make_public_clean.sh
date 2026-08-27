@@ -59,13 +59,7 @@ if ! python3 scripts/check_no_personal_data.py; then
   exit 1
 fi
 
-git commit -m "$(cat <<'EOF'
-Public release: code only — no personal data.
-
-Live profile, skills, application history and documents stay in ~/ResumeRewriter
-on each user's machine. This history starts fresh so old private snapshots are gone.
-EOF
-)"
+git commit -m "Public release: code only, no personal data."
 
 echo "==> Orphan commit ready: $(git rev-parse --short HEAD)"
 echo "    Files in this commit: $(git ls-files | wc -l | tr -d ' ')"
