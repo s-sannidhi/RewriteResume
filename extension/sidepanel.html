@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --ink:#1c2024; --muted:#6b7280; --line:#e3e6ea; --accent:#2f6fed;
+          --accent-weak:#eaf1ff; --chip:#eef1f5; --ok:#1f8a4c; --danger:#c2414b;
+          --c-jobs:#2f6fed; --c-docs:#b45309; --c-myinfo:#0f8a6d; --c-ask:#7c3aed; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:var(--ink); }
+  h1 { font-size:16px; margin:0 0 1px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:10px; line-height:1.4; }
+
+  button { font:inherit; font-size:13px; border:1px solid var(--line); background:#fff; color:var(--ink);
+           border-radius:8px; padding:6px 11px; cursor:pointer; width:100%; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.primary:hover { filter:brightness(0.93); }
+  button:disabled { opacity:.5; cursor:default; }
+  button.small { width:auto; padding:3px 9px; font-size:12px; border-radius:6px; }
+  /* Big tap targets for the actions used mid-application, when the panel is narrow and you're
+     clicking fast. Comfortably above the ~44px touch-target guideline at default zoom. */
+  button.big { padding:11px 14px; font-size:14px; font-weight:600; border-radius:9px;
+               min-height:44px; line-height:1.2; }
+  button.big + button.big { margin-top:7px; }
+  .btn-row { display:flex; gap:7px; }
+  .btn-row button { flex:1; }
+  button.act { width:auto; padding:5px 10px; font-size:12px; border-radius:7px; min-height:30px;
+               border-color:var(--accent); color:var(--accent); font-weight:600; }
+  button.danger { border-color:var(--danger); color:var(--danger); }
+
+  .row { display:flex; gap:8px; align-items:center; }
+  .muted { color:var(--muted); }
+  .k { font-weight:600; }
+  .hint { color:var(--muted); font-size:11px; }
+
+  /* cards give every action a titled, self-contained block */
+  .card { border:1px solid var(--line); border-radius:10px; padding:9px 11px; margin-top:8px; }
+  .card > .card-title { font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; }
+  .card > .card-sub { color:var(--muted); font-size:11px; line-height:1.35; margin:1px 0 7px; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .chip { background:var(--chip); border-radius:999px; padding:2px 9px; font-size:12px; }
+  .chip.add { display:inline-flex; align-items:center; gap:6px; }
+  .chip.add button { width:auto; padding:0 4px; border:none; background:none; color:var(--accent); cursor:pointer; }
+  label.lbl { font-size:12px; color:var(--muted); display:block; margin:10px 0 3px; }
+  select, input, textarea { width:100%; padding:8px 9px; border:1px solid var(--line);
+                            border-radius:7px; font:inherit; }
+  textarea { resize:vertical; min-height:64px; }
+  .status { font-size:12px; margin-top:6px; min-height:0; white-space:pre-wrap; }
+  .status:empty { margin-top:0; min-height:0; }
+  .status.err { color:var(--danger); } .status.ok { color:var(--ok); }
+  a.link { color:var(--accent); }
+
+  /* collapsible help — keeps explanations out of the way until wanted */
+  details.help { margin-top:12px; }
+  details.help > summary { cursor:pointer; color:var(--muted); font-size:12px; list-style:none;
+                           padding:2px 0; }
+  details.help > summary::-webkit-details-marker { display:none; }
+  details.help > summary::before { content:"ⓘ  "; }
+  details.help[open] > summary::before { content:"▾  "; }
+  details.help .help-body { color:var(--muted); font-size:11.5px; line-height:1.55; margin-top:6px; }
+
+  /* ---- persistent top bar: server state + panel size ---- */
+  #appbar { position:sticky; top:0; z-index:10; background:#fff; }
+  #topbar { display:flex; align-items:center; justify-content:space-between; gap:8px;
+            padding:5px 12px; border-bottom:1px solid var(--line); font-size:12px; }
+  .scale-ctl { display:flex; align-items:center; gap:3px; }
+  .scale-ctl button { width:auto; padding:2px 8px; font-size:12px; line-height:1.25; border-radius:6px; }
+  #scaleLabel { min-width:40px; text-align:center; color:var(--muted); cursor:pointer;
+                font-variant-numeric:tabular-nums; }
+  #scaleLabel:hover { color:var(--ink); }
+
+  /* ---- tab shell: 5 visually distinct pages ---- */
+  #tabbar { display:flex; background:#fff; border-bottom:1px solid var(--line); }
+  #tabbar button { flex:1; width:auto; border:none; border-radius:0; background:none;
+                   padding:10px 2px 8px; font-size:13px; font-weight:600; color:var(--muted);
+                   border-bottom:3px solid transparent; }
+  #tabbar button[data-tab="jobs"].active   { color:var(--c-jobs);   border-bottom-color:var(--c-jobs); }
+  #tabbar button[data-tab="docs"].active   { color:var(--c-docs);   border-bottom-color:var(--c-docs); }
+  #tabbar button[data-tab="myinfo"].active { color:var(--c-myinfo); border-bottom-color:var(--c-myinfo); }
+  #tabbar button[data-tab="ask"].active    { color:var(--c-ask);    border-bottom-color:var(--c-ask); }
+  .tab-page { padding:13px 14px 20px; border-top:3px solid transparent; }
+  .tab-page.hidden { display:none; }
+  #tab-jobs   { border-top-color:var(--c-jobs);   --accent:var(--c-jobs); }
+  #tab-docs   { border-top-color:var(--c-docs);   --accent:var(--c-docs); }
+  #tab-myinfo { border-top-color:var(--c-myinfo); --accent:var(--c-myinfo); }
+  #tab-ask    { border-top-color:var(--c-ask);    --accent:var(--c-ask); }
+
+  /* click-to-copy tiles (My Info) */
+  .tile { display:block; width:100%; text-align:left; margin-top:6px; padding:8px 10px;
+          border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; }
+  .tile:hover { border-color:var(--accent); background:var(--accent-weak); }
+  .tile .t-label { font-size:11.5px; color:var(--muted); display:block; }
+  .tile .t-value { font-size:13.5px; word-break:break-word; white-space:pre-wrap; }
+  .tile.copied { border-color:var(--ok); }
+  .tile.copied .t-label { color:var(--ok); font-weight:600; }
+  .pill { display:inline-block; border-radius:999px; padding:1px 9px; font-size:11.5px; font-weight:600; }
+  .pill.sent { background:#e5f6ec; color:var(--ok); }
+  .pill.notsent { background:var(--chip); color:var(--muted); }
+  /* Ask tab: the verified skills list, dense enough to scan while typing into a form by hand.
+     Chips wrap; the group name sits inline so a group costs no extra line of its own. */
+  .skill-group { display:flex; flex-wrap:wrap; align-items:center; gap:3px; margin-top:4px; }
+  .skill-group-name { font-size:9.5px; color:var(--muted); text-transform:uppercase;
+                      letter-spacing:.04em; flex:0 0 auto; margin-right:2px; }
+  button.skill-chip { width:auto; padding:1px 7px; font-size:11.5px; border-radius:999px;
+                      background:var(--chip); border-color:transparent; line-height:1.6; }
+  button.skill-chip:hover { border-color:var(--accent); color:var(--accent); }
+  button.skill-chip.copied { border-color:var(--ok); color:var(--ok); }
+
+  /* Ask tab: four documents on one compact strip. Two per line, ellipsised rather than wrapped,
+     so the card's height never depends on how long a company name is. */
+  /* The two Ask cards carry no sub-text, so their first element would sit flush against the
+     title — restore the gap the sub-text used to provide. */
+  .card > .card-title + .quick-docs, .card > .card-title + button { margin-top:7px; }
+  .quick-docs { display:flex; flex-wrap:wrap; gap:5px; }
+  .quick-docs button { flex:1 1 calc(50% - 5px); min-width:0; width:auto; padding:5px 8px;
+                       font-size:12px; text-align:left; white-space:nowrap; overflow:hidden;
+                       text-overflow:ellipsis; }
+  .skills-mode-row { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted); }
+  .skills-mode-row select { width:auto; flex:1; font-size:11.5px; padding:3px 5px; }
+
+  /* ---- sticky jump-nav (My Info + Docs): tap a chip to scroll to a section ---- */
+  .jumpnav { position:sticky; top:0; z-index:5; display:flex; gap:5px; overflow-x:auto;
+             padding:8px 0 7px; margin:-2px 0 4px; background:#fff;
+             -ms-overflow-style:none; scrollbar-width:none; }
+  .jumpnav::-webkit-scrollbar { display:none; }
+  .jumpnav button { width:auto; flex:0 0 auto; padding:3px 10px; font-size:12px; border-radius:999px;
+                    color:var(--muted); }
+  .jumpnav button:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ---- Docs tab: instant search + one-tap document rows ---- */
+  #docSearch { margin-bottom:2px; }
+  .doc-sec-title { font-weight:600; font-size:12px; color:var(--muted); margin:14px 0 2px;
+                   text-transform:uppercase; letter-spacing:.04em; }
+  .doc-row { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-top:6px;
+             border:1px solid var(--line); border-radius:9px; background:#fff; }
+  .doc-row:hover { border-color:var(--accent); }
+  .doc-main { flex:1; min-width:0; text-align:left; border:none; background:none; padding:0;
+              cursor:pointer; width:auto; }
+  .doc-main:hover { background:none; }
+  .doc-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden;
+              text-overflow:ellipsis; }
+  .doc-sub { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden;
+             text-overflow:ellipsis; }
+  .doc-kind { flex:0 0 auto; font-size:15px; line-height:1; }
+  .doc-acts { flex:0 0 auto; display:flex; gap:3px; }
+  .doc-acts button { width:auto; padding:3px 7px; font-size:12px; border-radius:6px; }
+  .doc-empty { color:var(--muted); font-size:12px; padding:10px 2px; }
+  .doc-hint { color:var(--muted); font-size:11px; line-height:1.5; margin-top:2px; }
+
+  /* ------------------------- dark mode ------------------------- */
+  :root {
+    --ink:#e7eaef; --muted:#98a2ae; --line:#2b313a; --accent:#5b8def;
+    --accent-weak:#1e2a44; --chip:#262c35; --ok:#3ecf8e; --danger:#ef6b6b;
+    --c-jobs:#5b8def; --c-docs:#e0a53b; --c-myinfo:#2bb99e; --c-ask:#a986f4;
+  }
+  body { background:#14171b; }
+  button { background:#22272f; color:var(--ink); border-color:var(--line); }
+  button.primary { color:#fff; }
+  button:hover { border-color:#3a4452; }
+  select, input, textarea { background:#1b1f26; color:var(--ink); border-color:var(--line); }
+  .card { background:#1b1f26; }
+  .tile { background:#1b1f26; }
+  .tile:hover { background:var(--accent-weak); }
+  #appbar, #topbar, #tabbar { background:#14171b; }
+  .jumpnav { background:#14171b; }
+  .doc-row { background:#1b1f26; }
+  .chip { background:#262c35; }
+  .pill.sent { background:#173a2a; color:#3ecf8e; }
+  .pill.notsent { background:#262c35; color:var(--muted); }
+  .status.err { color:#ef6b6b; } .status.ok { color:var(--ok); }
+</style>
+</head>
+<body>
+
+  <header id="appbar">
+    <div id="topbar">
+      <span id="serverDot" class="muted">● checking server…</span>
+      <div class="scale-ctl">
+        <button id="openSiteBtn" class="small primary" title="Open the full website in a new tab" style="margin-right:6px;white-space:nowrap">🌐 Website</button>
+        <button id="scaleDown" title="Smaller">A−</button>
+        <span id="scaleLabel" title="Reset to 100%">100%</span>
+        <button id="scaleUp" title="Bigger">A+</button>
+        <button id="reloadExtBtn" class="small" title="Reload extension" style="margin-left:4px">↻</button>
+      </div>
+    </div>
+    <nav id="tabbar">
+      <button data-tab="jobs">Jobs</button>
+      <button data-tab="docs" class="active">Docs</button>
+      <button data-tab="myinfo">My Info</button>
+      <button data-tab="ask">Ask</button>
+    </nav>
+  </header>
+
+  <section class="tab-page hidden" id="tab-jobs">
+    <h1>Resume Rewriter</h1>
+    <div class="sub">Read job descriptions and tailor a 1-page résumé. Local only · never submits.</div>
+
+    <div class="card">
+      <div class="card-title">🔎 Find internships</div>
+      <div class="card-sub">Today's US / Canada matches from Simplify, Pitt CSC GitHub, and
+        ApplyGuy — opened as tabs. Remembers links already opened so Find+open won't reopen them.
+        First Find+open of the day puts 1 big OA-company role (IBM, Capital One, …) at the
+        front — tagged <b>OA</b> — so that assessment starts early.</div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px">
+        <span class="muted">Posting age</span>
+        <span id="ageLabel" class="k">0–1 days old</span>
+      </div>
+      <div class="row" style="gap:8px;margin:4px 0 10px">
+        <input type="range" id="ageMin" min="0" max="21" step="1" value="0" style="flex:1;padding:0;border:none">
+        <input type="range" id="ageMax" min="0" max="21" step="1" value="1" style="flex:1;padding:0;border:none">
+      </div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px;margin-bottom:4px">
+        <span class="muted">Open only the top</span>
+        <span><input type="number" id="topN" min="0" max="200" step="1" value="15"
+                     style="width:62px;padding:3px 6px;text-align:right"> best fits</span>
+      </div>
+      <div class="hint" style="margin-bottom:8px">Ranked against your profile: summer + your stack
+        score up; security / hardware / Canada / school-year score down. 0 = open every match.</div>
+      <button id="previewInternsBtn">👁 Preview ranking (opens nothing)</button>
+      <button class="primary" id="openInternsBtn" style="margin-top:6px">Find + open</button>
+      <button id="openInternsDocsBtn" style="margin-top:6px">Find + open + make docs</button>
+      <button class="small" id="clearOpenedInternsBtn" style="margin-top:6px" title="Forget which internships Find+open has already opened, so they can be opened again">Clear opened history</button>
+      <div class="status" id="internsStatus"></div>
+      <div id="internsList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏢 Top-500 company internships</div>
+      <div class="card-sub">Scans the whole board for internships at S&amp;P 500 companies, any posting
+        age, ranked by fit. Lists them — nothing opens until you say so.</div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px;margin-bottom:6px">
+        <span class="muted">Show top</span>
+        <span><input type="number" id="topCoN" min="1" max="200" step="1" value="30"
+                     style="width:62px;padding:3px 6px;text-align:right"> results</span>
+      </div>
+      <button class="primary" id="findTopCoBtn">Search top-500 companies</button>
+      <button id="openTopCoBtn" style="margin-top:6px" disabled>Open these as tabs</button>
+      <div class="status" id="topCoStatus"></div>
+      <div id="topCoList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📄 Make documents — all open tabs</div>
+      <div class="card-sub">Reads every open job tab, then builds a résumé + cover letter for each.</div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px;margin-bottom:6px">
+        <span class="muted">Stop after</span>
+        <span><input type="number" id="batchLimit" min="0" max="600" step="5" value="0"
+                     style="width:62px;padding:3px 6px;text-align:right"> minutes</span>
+      </div>
+      <div class="hint" style="margin-bottom:8px">0 = no limit. Each job takes ~60-90s. The batch
+        finishes the job it's on, then stops — nothing is left half-written.</div>
+      <div class="row">
+        <button class="primary" id="batchJDBtn" style="flex:1">Read JDs + make docs</button>
+        <button class="small danger" id="stopBatchBtn" disabled>Stop</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="small" id="refreshJobsBtn">Refresh</button>
+        <button class="small" id="clearJobsBtn">Clear</button>
+        <span class="hint">Tap a job to see its JD.</span>
+      </div>
+      <div class="status" id="batchStatus"></div>
+      <div id="batchList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📍 This tab's job</div>
+      <div class="card-sub">Reads the current tab's JD and makes both docs in one shot.</div>
+      <button class="primary" id="makeDocsBtn">🚀 Make résumé + cover letter</button>
+      <div class="status" id="status"></div>
+      <div id="results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🪄 Autofill this page</div>
+      <div class="card-sub">Best on Greenhouse / Lever / Ashby. Fills only what it knows, attaches
+        this job's documents, flags the rest, and never submits. Anything it leaves blank can be
+        handed to the Ask tab in one tap.</div>
+      <button class="primary big" id="autofillAllBtn">⚡ Fill everything + attach documents</button>
+      <div class="btn-row" style="margin-top:7px">
+        <button class="big" id="autofillBtn">🪄 Fill fields</button>
+        <button class="big" id="attachDocsBtn">📎 Attach files</button>
+      </div>
+      <div class="status" id="autofillStatus"></div>
+      <div id="autofillReview"></div>
+    </div>
+
+    <details class="help">
+      <summary>How learning &amp; setup work</summary>
+      <div class="help-body">
+        <b>Learning quietly:</b> as you fill application forms by hand, it remembers your reusable
+        answers — dropdowns, yes/no questions, how-you-heard, work-authorization (job sites only;
+        never passwords, payment, or essays, which Ask writes fresh).<br><br>
+        The backend must be running (<span class="k">./run.sh</span>) on 127.0.0.1:8765.
+        <div id="learnLog"></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="tab-page" id="tab-docs">
+    <h1>Docs</h1>
+    <div class="sub">Attach a resume, cover letter, transcript, or schedule without hunting through
+      Finder. Tap a doc → it drops into the page's upload field.</div>
+    <div class="card">
+      <div class="card-title">📎 Uploads</div>
+      <div class="card-sub">Turn on <b>Auto-upload resume</b> to drop this job’s résumé (and cover /
+        transcript when labelled) into matching upload boxes as pages load. Off by default — no
+        Chrome debug banner while browsing. Or tap a doc below / use Attach now.</div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px;margin-bottom:6px">
+        <span class="muted">Auto-upload resume</span>
+        <select id="autoAttachMode" style="width:auto;padding:3px 6px">
+          <option value="off">Off</option>
+          <option value="on">On</option>
+        </select>
+      </div>
+      <div class="hint" style="margin-top:4px">Matches résumé / CV, cover letter and transcript by
+        the words around each upload area. When a page has both a résumé box that autofills the
+        application and a plain attachment box, only the autofill one is used.</div>
+      <button class="big" id="autoAttachNowBtn" style="margin-top:6px">📎 Attach now on this page</button>
+      <button class="small" id="healthBtn" style="margin-top:6px">🩺 Extension health</button>
+      <div class="status" id="pickerStatus"></div>
+    </div>
+
+    <input id="docSearch" type="search" placeholder="Search documents…" autocomplete="off">
+    <div class="doc-hint" id="docTopHint">Tap a doc to attach it to this page's upload field.
+      No upload field? Its path is copied — in the file dialog press <b>⌘⇧G</b>, <b>⌘V</b>, Enter.</div>
+    <div class="row" style="margin-top:8px;gap:6px">
+      <button class="small" id="docsRefreshBtn">↻ Refresh</button>
+      <button class="small" id="docsOpenFolderBtn" title="Open the documents folder in Finder — drop new files there">📁 Open documents folder</button>
+    </div>
+    <div class="status" id="docsStatus"></div>
+    <div id="docsBody"></div>
+  </section>
+
+  <section class="tab-page hidden" id="tab-myinfo">
+    <h1>My Info</h1>
+    <div class="sub">Click a box, then click a form field on the page — it pastes right in.
+      (Esc cancels; it's on your clipboard too.)</div>
+    <button class="small" id="editProfileLink">✎ Edit full profile (website)</button>
+
+    <details class="help">
+      <summary>🛠 Fill skills on Workday</summary>
+      <div class="help-body">
+        Open the Workday application with the Skills field visible, then click. It types this
+        job's skills into the Skills box only — nothing else on the page is touched.
+        <div class="row" style="margin-top:8px">
+          <button class="primary" id="wdSkillsBtn" style="flex:1;color:#fff">Fill Workday skills</button>
+          <button class="small danger" id="wdSkillsStopBtn" disabled>Stop</button>
+        </div>
+        <div class="skills-mode-row" style="margin-top:8px">
+          Fill engine:
+          <select id="wdSkillsMode">
+            <option value="auto">Auto — try React, fall back to trusted typing</option>
+            <option value="react">React fill only — no banner</option>
+            <option value="cdp">Pick from Workday's list — exact matches only</option>
+          <option value="freetext">Free text — type each skill + Enter (any value)</option>
+          </select>
+        </div>
+        <button class="small" id="wdDiagBtn" style="margin-top:6px">🔍 Diagnose skills field</button>
+        <div class="status" id="wdSkillsStatus"></div>
+        <div id="wdDiagBox"></div>
+        <hr>
+        <div class="k" style="font-size:12.5px">🧑‍💼 Fill Workday work experience</div>
+        <div class="muted" style="font-size:11px;margin:2px 0 6px">
+          Scroll the Work Experience section into view, then click. Fills title, company, dates,
+          and each role's description using this tab's tailored résumé.</div>
+        <button class="primary" id="wdWorkBtn" style="color:#fff">Fill Workday work experience</button>
+        <div class="status" id="wdWorkStatus"></div>
+        <div id="wdDateBox"></div>
+        <hr>
+        <div class="k" style="font-size:12.5px">🎓 Fill Workday education</div>
+        <div class="muted" style="font-size:11px;margin:2px 0 6px">
+          Fills School / University and Field of Study by searching Workday's own list and picking
+          the closest match ("University of Texas" → the Austin one). If nothing matches, the
+          options it offered are printed below.</div>
+        <button class="primary" id="wdEduBtn" style="color:#fff">Fill school &amp; field of study</button>
+        <div class="status" id="wdEduStatus"></div>
+        <div id="wdEduBox"></div>
+      </div>
+    </details>
+
+    <div class="status" id="miStatus"></div>
+    <div id="miBody"></div>
+  </section>
+
+  <section class="tab-page hidden" id="tab-ask">
+    <h1>Ask</h1>
+    <div class="sub">Quick per-application answers. For a full chat (essays, club apps, history), use the website.</div>
+    <div class="card">
+      <div class="card-title">🪄 Autofill this page</div>
+      <button class="primary big" id="askAutofillAllBtn">⚡ Fill everything + attach documents</button>
+      <div class="btn-row" style="margin-top:7px">
+        <button class="big" id="askAutofillBtn">🪄 Fill fields</button>
+        <button class="big" id="askAttachDocsBtn">📎 Attach files</button>
+      </div>
+      <button class="big" id="pullQuestionsBtn" style="margin-top:7px">📋 Pull questions from this page</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📎 Documents</div>
+      <div class="quick-docs" id="askDocsRow"></div>
+      <div class="status" id="askDocsStatus"></div>
+      <div id="askDocsBody"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏢 Workday</div>
+      <div class="card-sub">Workday's skills box and work-experience cards are custom widgets the
+        normal autofill can't reach — they need these. Scroll the section into view on the Workday
+        page first, then tap.</div>
+      <div class="btn-row">
+        <button class="primary big" id="askWdSkillsBtn" style="color:#fff">🛠 Fill skills</button>
+        <button class="big danger" id="askWdSkillsStopBtn" style="flex:0 0 34%" disabled>Stop</button>
+      </div>
+      <div class="skills-mode-row" style="margin-top:7px">
+        Fill engine:
+        <select id="askWdSkillsMode">
+          <option value="auto">Auto — try React, fall back to trusted typing</option>
+          <option value="react">React fill only — no banner</option>
+          <option value="cdp">Pick from Workday's list — exact matches only</option>
+          <option value="freetext">Free text — type each skill + Enter (any value)</option>
+        </select>
+      </div>
+      <button class="big" id="askWdDiagBtn" style="margin-top:7px">🔍 Diagnose skills field</button>
+      <div class="status" id="askWdSkillsStatus"></div>
+      <div id="askWdDiagBox"></div>
+      <button class="primary big" id="askWdWorkBtn" style="color:#fff;margin-top:8px">🧑‍💼 Fill work experience</button>
+      <div class="status" id="askWdWorkStatus"></div>
+      <div id="askWdDateBox"></div>
+      <button class="primary big" id="askWdEduBtn" style="color:#fff;margin-top:8px">🎓 Fill school &amp; field of study</button>
+      <div class="status" id="askWdEduStatus"></div>
+      <div id="askWdEduBox"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧠 My skills</div>
+      <div id="askSkills" class="hint">Loading…</div>
+    </div>
+    <button class="big" id="openAiAskBtn" style="margin-bottom:10px">💬 Open the full AI Ask chat →</button>
+    <div id="pulledQuestions"></div>
+    <div id="askBody"></div>
+  </section>
+
+  <script src="ui.js"></script>
+  <script src="jd_detect.js"></script>
+  <script src="tabs.js"></script>
+  <script src="sidepanel.js"></script>
+  <script src="cdp_session.js"></script>
+  <script src="upload_match.js"></script>
+  <script src="autofill.js"></script>
+  <script src="cdp_input.js"></script>
+  <script src="upload_smart.js"></script>
+  <script src="autofill_page.js"></script>
+  <script src="myinfo.js"></script>
+  <script src="workday_skills.js"></script>
+  <script src="workday_education.js"></script>
+  <script src="ask.js"></script>
+  <script src="docs.js"></script>
+</body>
+</html>

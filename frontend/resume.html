@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume Rewriter — Profile</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #fff; --ink: #1c2024; --muted: #6b7280;
+    --line: #e3e6ea; --accent: #2f6fed; --accent-weak: #eaf1ff; --danger: #d23b3b;
+    --chip: #eef1f5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header.top {
+    position: sticky; top: 0; z-index: 10; background: var(--panel);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center;
+    gap: 16px; padding: 12px 20px;
+  }
+  header.top h1 { font-size: 16px; margin: 0; font-weight: 700; }
+  header.top .status { color: var(--muted); font-size: 13px; }
+  header.top .spacer { flex: 1; }
+  button {
+    font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 7px; padding: 7px 13px; cursor: pointer;
+  }
+  button:hover { border-color: #c7ccd3; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #2860d8; }
+  button.ghost { background: transparent; }
+  button.danger { color: var(--danger); border-color: #f0c9c9; }
+  .layout { display: flex; gap: 24px; max-width: 1000px; margin: 22px auto; padding: 0 20px; }
+  nav.side { width: 180px; flex: none; position: sticky; top: 78px; align-self: flex-start; }
+  nav.side a { display: block; padding: 7px 11px; border-radius: 7px; color: var(--ink);
+               text-decoration: none; font-size: 13px; }
+  nav.side a:hover { background: var(--panel); }
+  nav.side a.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+  main { flex: 1; min-width: 0; }
+  section.card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 20px;
+  }
+  section.card > h2 { margin: 0 0 4px; font-size: 15px; }
+  section.card > .hint { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .grid.one { grid-template-columns: 1fr; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px;
+    font: inherit; background: #fff; color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: 2px solid var(--accent-weak); border-color: var(--accent);
+  }
+  .item { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px;
+          background: #fcfcfd; }
+  .item .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .item .item-head strong { font-size: 13px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; background: var(--chip);
+         border-radius: 999px; padding: 4px 6px 4px 11px; font-size: 12.5px; }
+  .tag b { font-weight: 500; }
+  .tag .x { cursor: pointer; color: var(--muted); border: none; background: none; font-size: 14px;
+            line-height: 1; padding: 0 2px; }
+  .tag .x:hover { color: var(--danger); }
+  .tag.block { background: #fdeaea; }
+  .add-row { display: flex; gap: 8px; margin-top: 8px; }
+  .add-row input { flex: 1; }
+  .skill-group { margin-bottom: 14px; }
+  .skill-group > label { font-size: 12.5px; font-weight: 600; display: block; margin-bottom: 4px; }
+  .muted { color: var(--muted); }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+           background: #1c2024; color: #fff; padding: 10px 16px; border-radius: 8px;
+           opacity: 0; transition: opacity .2s; pointer-events: none; font-size: 13px; }
+  .toast.show { opacity: 1; }
+
+  /* applications tracker table */
+  .apps-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .apps-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11.5px;
+                   text-transform: uppercase; letter-spacing: .02em; padding: 6px 8px;
+                   border-bottom: 1px solid var(--line); }
+  .apps-table td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .apps-table a { color: var(--accent); text-decoration: none; }
+  .apps-table a:hover { text-decoration: underline; }
+  .apps-table select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+                       font: inherit; background: #fff; cursor: pointer; font-weight: 600; }
+  .apps-table select.status-accepted, .apps-table select.status-offer { color: #1f8a4c; border-color: #bfe3cc; }
+  .apps-table select.status-interview { color: #b45309; border-color: #f0d9b5; }
+  .apps-table select.status-rejected, .apps-table select.status-withdrawn { color: var(--danger); border-color: #f0c9c9; }
+  .apps-table select.status-applied { color: var(--accent); border-color: #bcd2f7; }
+
+  /* AI Ask chat */
+  .chat-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .chat-bar button { white-space:nowrap; }
+  .chat-msgs { display:flex; flex-direction:column; gap:10px; min-height:180px; max-height:52vh;
+               overflow-y:auto; padding:4px 2px; }
+  .bubble { max-width:82%; padding:9px 13px; border-radius:14px; white-space:pre-wrap;
+            line-height:1.5; font-size:13.5px; word-break:break-word; }
+  .bubble.me { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:5px; }
+  .bubble.ai { align-self:flex-start; background:var(--chip); color:var(--ink); border-bottom-left-radius:5px; }
+  .chat-compose { display:flex; gap:8px; align-items:flex-end; margin-top:12px; }
+  .chat-input { flex:1; resize:vertical; min-height:44px; }
+  .chat-compose button { align-self:stretch; }
+
+  /* chat-history modal */
+  .modal-back { position: fixed; inset: 0; background: rgba(20,24,30,.45); z-index: 100;
+                display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .modal { background: var(--panel); border-radius: 12px; width: 100%; max-width: 640px;
+           max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center;
+                padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .modal-body { overflow: auto; padding: 6px 18px 18px; }
+  .chat-item { border-top: 1px solid var(--line); padding: 12px 0; }
+  .chat-item:first-child { border-top: none; }
+  .chat-q { font-weight: 600; }
+  .chat-at { color: var(--muted); font-size: 11.5px; margin: 2px 0 5px; }
+  .chat-a { white-space: pre-wrap; }
+
+  /* ------------------------- dark mode ------------------------- */
+  :root {
+    --bg:#14171b; --panel:#1b1f26; --ink:#e7eaef; --muted:#98a2ae;
+    --line:#2b313a; --accent:#5b8def; --accent-weak:#1e2a44; --danger:#ef6b6b; --chip:#262c35;
+  }
+  .field input, .field select, .field textarea { background:#22272f; color:var(--ink); }
+  .item { background:#181c22; }
+  button { background:#22272f; color:var(--ink); }
+  button:hover { border-color:#3a4452; }
+  button.primary { color:#fff; }
+  .tag { background:#262c35; }
+  .tag.block { background:#3a1d1d; }
+  .apps-table select { background:#22272f; color:var(--ink); }
+  .apps-table select.status-accepted, .apps-table select.status-offer { color:#3ecf8e; border-color:#2a4a38; }
+  .apps-table select.status-interview { color:#e0a53b; border-color:#4a3a1e; }
+  .apps-table select.status-rejected, .apps-table select.status-withdrawn { color:#ef6b6b; border-color:#4a2626; }
+  .apps-table select.status-applied { color:#5b8def; border-color:#26375a; }
+  .modal { background:var(--panel); }
+  .chat-a { color:#c4cbd3; }
+</style>
+</head>
+<body>
+  <header class="top">
+    <h1>Resume</h1>
+    <span class="status" id="status">loading…</span>
+    <span class="spacer"></span>
+    <button class="ghost" id="reload">Reload</button>
+    <button class="primary" id="save">Save profile</button>
+  </header>
+
+  <div class="layout">
+    <nav class="side" id="nav"></nav>
+    <main id="main"></main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

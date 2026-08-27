@@ -1,0 +1,31 @@
+Software Engineer Intern — Summer 2026
+Vantage Labs · Austin, TX (Hybrid)
+
+About the role
+We're looking for a Software Engineer Intern to join our Platform team for Summer 2026. You'll
+work alongside full-time engineers to design, build, and ship features that power our developer
+platform used by thousands of teams. This is a hands-on role with real ownership — your code
+ships to production.
+
+What you'll do
+- Build and maintain RESTful APIs and backend services in Python and Node.js
+- Design data models and write efficient queries against PostgreSQL
+- Containerize services with Docker and deploy to AWS (ECS, Lambda, S3)
+- Contribute to our React + TypeScript frontend for internal tooling
+- Write unit and integration tests and participate in code reviews
+- Collaborate with the team using Git and an agile workflow
+
+What we're looking for
+- Currently pursuing a BS/MS in Computer Science or related field
+- Solid foundation in data structures, algorithms, and object-oriented programming
+- Experience with at least one of: Python, Java, C++, or JavaScript/TypeScript
+- Familiarity with relational databases and version control (Git)
+- Strong communication skills and a bias toward shipping
+
+Nice to have
+- Exposure to cloud platforms (AWS, GCP, or Azure)
+- Experience with Docker, Kubernetes, or CI/CD pipelines
+- Prior internship, hackathon, or open-source contributions
+- Interest in distributed systems and developer tooling
+
+Vantage Labs is an equal opportunity employer.

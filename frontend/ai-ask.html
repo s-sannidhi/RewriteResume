@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Ask</title>
+<style>
+  :root {
+    --bg:#14171b; --panel:#1b1f26; --raised:#22272f; --ink:#e7eaef; --muted:#98a2ae;
+    --faint:#6c7683; --line:#2a3038; --accent:#5b8def; --accent-ink:#fff;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--ink); display:flex; flex-direction:column;
+         font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); text-decoration:none; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--raised);
+           color:var(--ink); border-radius:9px; padding:8px 12px; }
+  button:hover { border-color:#3a4452; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  button.primary:hover { filter:brightness(1.06); }
+
+  header.top { display:flex; align-items:center; gap:12px; padding:11px 18px;
+    border-bottom:1px solid var(--line); background:var(--panel); }
+  header.top .brand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; }
+  header.top .brand .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  header.top .spacer { flex:1; }
+  header.top a.link { color:var(--muted); font-size:13px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); }
+  header.top a.link:hover { color:var(--ink); }
+
+  .shell { flex:1; display:flex; min-height:0; }
+
+  /* thread sidebar */
+  aside { width:250px; flex:none; border-right:1px solid var(--line); background:var(--panel);
+          display:flex; flex-direction:column; }
+  aside .newbtn { margin:12px; }
+  aside .threads { flex:1; overflow-y:auto; padding:0 8px 12px; }
+  .thread { display:flex; align-items:center; gap:6px; padding:9px 10px; border-radius:9px;
+            cursor:pointer; color:var(--ink); font-size:13px; margin-bottom:2px; }
+  .thread:hover { background:var(--raised); }
+  .thread.active { background:#243049; }
+  .thread .t-title { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thread .t-del { opacity:0; color:var(--faint); border:none; background:none; padding:2px 4px; font-size:15px; }
+  .thread:hover .t-del { opacity:1; }
+  .thread .t-del:hover { color:#ef6b6b; }
+  .thread .t-count { color:var(--faint); font-size:11px; }
+  aside .empty { color:var(--faint); font-size:12.5px; padding:12px; text-align:center; }
+
+  /* conversation */
+  main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .msgs { flex:1; overflow-y:auto; padding:24px 0; }
+  .msgs-inner { max-width:760px; margin:0 auto; padding:0 22px; display:flex; flex-direction:column; gap:16px; }
+  .row { display:flex; gap:12px; }
+  .row.me { justify-content:flex-end; }
+  .avatar { width:28px; height:28px; border-radius:8px; flex:none; display:flex; align-items:center;
+            justify-content:center; font-size:14px; background:var(--raised); }
+  .bubble { max-width:76%; padding:11px 15px; border-radius:15px; white-space:pre-wrap;
+            line-height:1.6; font-size:14px; word-break:break-word; }
+  .row.me .bubble { background:var(--accent); color:var(--accent-ink); border-bottom-right-radius:5px; }
+  .row.ai .bubble { background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:5px; }
+  .welcome { max-width:560px; margin:8vh auto 0; text-align:center; color:var(--muted); }
+  .welcome h1 { color:var(--ink); font-size:22px; margin:0 0 8px; letter-spacing:-.02em; }
+  .welcome .chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px; }
+  .welcome .chip { border:1px solid var(--line); border-radius:999px; padding:7px 13px; font-size:12.5px;
+                   cursor:pointer; color:var(--ink); background:var(--panel); }
+  .welcome .chip:hover { border-color:var(--accent); }
+
+  /* composer */
+  .composer { border-top:1px solid var(--line); background:var(--panel); padding:12px 0; }
+  .composer-inner { max-width:760px; margin:0 auto; padding:0 22px; display:flex; gap:10px; align-items:flex-end; }
+  textarea { flex:1; resize:none; background:var(--raised); color:var(--ink); border:1px solid var(--line);
+             border-radius:12px; padding:11px 13px; font:inherit; min-height:46px; max-height:180px; }
+  textarea:focus { outline:2px solid #26375a; border-color:var(--accent); }
+  .composer .hint { max-width:760px; margin:6px auto 0; padding:0 22px; color:var(--faint); font-size:11.5px; min-height:14px; }
+  .typing { color:var(--faint); font-size:13px; font-style:italic; }
+  @media (max-width:640px){ aside { display:none; } }
+</style>
+</head>
+<body>
+  <header class="top">
+    <span class="brand"><span class="dot"></span> AI Ask</span>
+    <span class="spacer"></span>
+  </header>
+
+  <div class="shell">
+    <aside>
+      <button class="primary newbtn" id="newBtn">+ New chat</button>
+      <div class="threads" id="threads"></div>
+    </aside>
+    <main>
+      <div class="msgs" id="msgs"></div>
+      <div class="composer">
+        <div class="composer-inner">
+          <textarea id="input" rows="1" placeholder="Ask anything — a job or club application question, an essay, a message to a recruiter…"></textarea>
+          <button class="primary" id="send">Send</button>
+        </div>
+        <div class="hint" id="hint">Grounded in your profile · humanized · full history kept · Enter to send, Shift+Enter for a new line</div>
+      </div>
+    </main>
+  </div>
+
+<script>
+const API = location.origin;
+const $ = (id) => document.getElementById(id);
+const el = (t,p={},...k) => { const n=document.createElement(t);
+  for (const [key,v] of Object.entries(p)) { if(key==="class")n.className=v; else if(key.startsWith("on"))n.addEventListener(key.slice(2),v); else if(v!=null)n.setAttribute(key,v); }
+  for (const c of k.flat()) if(c!=null) n.append(c.nodeType?c:document.createTextNode(c)); return n; };
+let threadId = null;
+
+async function loadThreads(select) {
+  let list = [];
+  try { list = (await (await fetch(`${API}/chat/threads`)).json()).threads || []; } catch(e){}
+  const box = $("threads"); box.innerHTML = "";
+  if (!list.length) box.append(el("div",{class:"empty"},"No chats yet.\nStart one above."));
+  list.forEach(t => {
+    const del = el("button",{class:"t-del", title:"Delete", onclick:(e)=>{e.stopPropagation(); delThread(t.id);}}, "×");
+    const row = el("div",{class:"thread"+(t.id===(select||threadId)?" active":""), onclick:()=>openThread(t.id)},
+      el("span",{class:"t-title"}, t.title), el("span",{class:"t-count"}, t.count), del);
+    box.append(row);
+  });
+  if (select) threadId = select;
+}
+
+async function openThread(id) {
+  threadId = id;
+  await loadThreads(id);
+  const msgs = $("msgs"); msgs.innerHTML = "";
+  let t; try { t = await (await fetch(`${API}/chat/thread/${id}`)).json(); } catch(e){ return; }
+  const inner = el("div",{class:"msgs-inner"});
+  (t.messages||[]).forEach(m => inner.append(bubble(m.role, m.content)));
+  msgs.append(inner);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function bubble(role, content) {
+  const me = role === "user";
+  return el("div",{class:"row "+(me?"me":"ai")},
+    me ? null : el("div",{class:"avatar"},"🤖"),
+    el("div",{class:"bubble"}, content),
+    me ? el("div",{class:"avatar"},"🧑") : null);
+}
+
+function welcome() {
+  const msgs = $("msgs"); msgs.innerHTML = "";
+  const chips = ["Why do I want to join this club?","Draft a short intro email to a recruiter",
+    "Rewrite this to sound more natural","Answer: tell us about yourself"];
+  msgs.append(el("div",{class:"welcome"},
+    el("h1",{},"What can I help you write?"),
+    el("div",{},"Application questions, essays, messages — grounded in your real background, in a human voice."),
+    el("div",{class:"chips"}, ...chips.map(c => el("div",{class:"chip", onclick:()=>{ $("input").value=c; send(); }}, c)))));
+}
+
+async function newThread() {
+  const t = await (await fetch(`${API}/chat/thread`,{method:"POST"})).json();
+  threadId = t.id; await loadThreads(t.id); welcome(); $("input").focus();
+}
+async function delThread(id) {
+  if (!confirm("Delete this chat and its history?")) return;
+  await fetch(`${API}/chat/thread/${id}`,{method:"DELETE"});
+  if (id===threadId){ threadId=null; welcome(); }
+  loadThreads();
+}
+
+async function send() {
+  const input = $("input"); const text = input.value.trim();
+  if (!text) return;
+  if (!threadId) { const t = await (await fetch(`${API}/chat/thread`,{method:"POST"})).json(); threadId=t.id; }
+  let inner = $("msgs").querySelector(".msgs-inner");
+  if (!inner) { $("msgs").innerHTML=""; inner = el("div",{class:"msgs-inner"}); $("msgs").append(inner); }
+  input.value=""; input.style.height="auto";
+  inner.append(bubble("user", text));
+  const think = el("div",{class:"row ai"}, el("div",{class:"avatar"},"🤖"), el("div",{class:"bubble typing"},"thinking…"));
+  inner.append(think); $("msgs").scrollTop = $("msgs").scrollHeight;
+  $("send").disabled = true;
+  try {
+    const res = await (await fetch(`${API}/chat/${threadId}/message`,{method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:text})})).json();
+    think.remove();
+    inner.append(bubble("ai", res.answer || res.hint || res.error || "(no answer)"));
+    $("msgs").scrollTop = $("msgs").scrollHeight;
+    loadThreads(threadId);
+  } catch(e){ think.querySelector(".bubble").textContent = "Failed: "+e.message; }
+  finally { $("send").disabled = false; }
+}
+
+const input = $("input");
+input.addEventListener("input", () => { input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,180)+"px"; });
+input.addEventListener("keydown", (e) => { if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }});
+$("send").addEventListener("click", send);
+$("newBtn").addEventListener("click", newThread);
+
+(async () => {
+  await loadThreads();
+  const first = $("threads").querySelector(".thread");
+  if (first) first.click(); else welcome();
+})();
+</script>
+</body>
+</html>

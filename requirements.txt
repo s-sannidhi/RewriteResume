@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+jinja2
+playwright
+pypdf
+httpx
+pyyaml
+pytest
+keyring

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outreach List</title>
+<style>
+  :root {
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#141a1f; --muted:#69727e; --faint:#9aa3ad;
+    --line:#e7eaee; --line-soft:#eef1f4; --accent:#2f6fed; --accent-weak:#e9f0fe;
+    --strong:#16a34a; --warm:#d97706; --cold:#8b97a5;
+    --shadow:0 1px 2px rgba(20,26,31,.04), 0 6px 20px rgba(20,26,31,.05);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  header.top { position:sticky; top:0; z-index:20; background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(180%) blur(8px); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:13px 24px; }
+  header.top h1 { font-size:15px; margin:0; font-weight:700; }
+  header.top .dot { width:7px; height:7px; border-radius:50%; background:var(--strong); }
+  header.top .spacer { flex:1; }
+  header.top a.btn, header.top button { font:inherit; border:1px solid var(--line); background:#fff;
+    color:var(--ink); border-radius:8px; padding:7px 12px; cursor:pointer; font-size:13px; }
+  header.top button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:650; }
+  header.top button:disabled { opacity:.55; cursor:default; }
+
+  .wrap { max-width:900px; margin:20px auto 60px; padding:0 24px; }
+  .controls { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 16px; box-shadow:var(--shadow); }
+  .controls label { font-size:12.5px; color:var(--muted); font-weight:600; }
+  .controls input[type=number] { width:64px; font:inherit; padding:5px 7px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); }
+  .controls .grow { flex:1; } .controls .count { font-size:12.5px; color:var(--muted); }
+  .bar { height:5px; background:var(--line-soft); border-radius:3px; overflow:hidden; flex-basis:100%; display:none; }
+  .bar > i { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:15px 17px;
+          box-shadow:var(--shadow); margin-bottom:12px; }
+  .chead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .co { font-weight:700; font-size:15px; } .co .site { font-size:12px; color:var(--faint); margin-left:6px; }
+  .fitpill { font-size:11px; font-weight:700; color:var(--strong); background:rgba(22,163,74,.12); padding:2px 8px; border-radius:999px; }
+  .src { font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; color:var(--muted); background:var(--line-soft); }
+  .why { font-size:12.5px; color:var(--muted); margin:6px 0 10px; }
+
+  .person { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:9px 0; border-top:1px solid var(--line-soft); }
+  .pr-role { font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:6px; color:var(--rc); background:color-mix(in srgb, var(--rc) 14%, transparent); }
+  .pr-name { font-weight:650; font-size:13px; } .pr-title { color:var(--muted); font-size:11.5px; }
+  .grow { flex:1; }
+  .email { font-weight:600; font-size:12.5px; }
+  .em-src { font-size:10px; font-weight:700; padding:2px 6px; border-radius:5px; color:var(--strong); background:rgba(22,163,74,.12); }
+  .mini { font:inherit; font-size:11.5px; font-weight:600; padding:4px 9px; border:1px solid var(--line);
+          border-radius:7px; background:var(--panel); color:var(--ink); cursor:pointer; } .mini:hover { border-color:#cfd5dd; }
+
+  .msg { margin-top:11px; padding-top:11px; border-top:1px solid var(--line-soft); display:none; }
+  .msg.open { display:block; }
+  .msg .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:9px; }
+  select.f { font:inherit; font-size:12px; font-weight:600; padding:5px 7px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); }
+  .fld { margin:8px 0; } .fld .lab { font-size:11px; font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; display:flex; align-items:center; gap:8px; }
+  .fld .lab .grow { flex:1; }
+  .fld input, .fld textarea { width:100%; font:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line);
+     border-radius:8px; background:#fcfcfd; color:var(--ink); resize:vertical; }
+  .fld textarea.email { min-height:150px; line-height:1.5; } .fld textarea.note { min-height:60px; }
+  .note-count { font-size:10.5px; color:var(--faint); font-weight:600; }
+  .empty { color:var(--muted); padding:40px; text-align:center; }
+  .spin { display:inline-block; width:12px; height:12px; border:2px solid rgba(255,255,255,.5); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+
+  @media (prefers-color-scheme: dark) {
+  :root { --bg:#14171b; --panel:#1b1f26; --ink:#e7eaef; --muted:#98a2ae; --faint:#6c7683;
+    --line:#2b313a; --line-soft:#23282f; --accent:#5b8def; --accent-weak:#1e2a3f; --strong:#3ecf8e; --warm:#e0a53b; --cold:#8b97a5;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); }
+  header.top { background:rgba(20,23,27,.85); } header.top a.btn, header.top button, .mini, select.f, .controls input { background:#22272f; color:var(--ink); }
+  .fld input, .fld textarea { background:#15181d; }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <span class="dot"></span><h1>✉️ Outreach List</h1>
+    <span class="spacer"></span>
+    <a class="btn" href="/app/#linkedin" target="_top">🚀 Startups</a>
+  </header>
+
+  <div class="wrap">
+    <div class="controls">
+      <label>Top <input type="number" id="topn" value="15" min="1" max="60"> startups</label>
+      <label>fit ≥ <input type="number" id="minfit" value="60" min="0" max="100"></label>
+      <button class="primary" id="build" style="border:none">📋 Build list</button>
+      <button class="mini" id="pull">➕ Pull Simplify internships</button>
+      <button class="mini" id="genall" style="display:none">✨ Generate all messages</button>
+      <span class="grow"></span>
+      <span class="count" id="count"></span>
+      <div class="bar" id="bar"><i></i></div>
+    </div>
+    <div id="list"><div class="empty">Build a ranked outreach list from your highest-fit startups. Each row gets a person to contact and a drafted message you can edit before sending. Nothing sends automatically.</div></div>
+  </div>
+
+<script>
+const API = location.origin;
+const el = (t,p={},...k)=>{const n=document.createElement(t);for(const[key,v]of Object.entries(p)){if(key==="class")n.className=v;else if(key==="html")n.innerHTML=v;else if(key.startsWith("on"))n.addEventListener(key.slice(2),v);else if(v!=null)n.setAttribute(key,v);}for(const c of k.flat())if(c!=null)n.append(c.nodeType?c:document.createTextNode(c));return n;};
+const enc = encodeURIComponent;
+const ROLE_LABEL={founder_cto:"Founder/CTO",eng_manager:"Eng Manager",engineer:"Engineer",recruiter:"Recruiter",other:"Team"};
+const ROLE_COLOR={founder_cto:"var(--strong)",eng_manager:"var(--accent)",engineer:"var(--warm)",recruiter:"var(--cold)",other:"var(--cold)"};
+const TYPES={founder_cold:"Founder cold outreach",engineer_networking:"Engineer networking",alumni:"Alumni connection",post_reply:"Reply to a post",follow_up:"Follow-up",referral:"Referral request"};
+let LIST=[];
+
+function copyBtn(getText){ return el("button",{class:"mini",onclick:(e)=>{navigator.clipboard?.writeText(getText());const o=e.target.textContent;e.target.textContent="✓ Copied";setTimeout(()=>e.target.textContent=o,1200);}},"Copy"); }
+
+function personCard(row){
+  const p=row.person||{};
+  const rb=p.role_bucket||"other";
+  const card=el("div",{class:"card"});
+  card.append(el("div",{class:"chead"},
+    el("span",{class:"co"}, row.website?el("a",{href:row.website,target:"_blank"},row.company):row.company),
+    el("span",{class:"fitpill num"},"fit "+row.fit_score),
+    row.source?el("span",{class:"src"},row.source):null));
+  if(row.why) card.append(el("div",{class:"why"},"Why: "+row.why.slice(0,180)));
+
+  // person line
+  const pl=el("div",{class:"person"});
+  pl.append(el("span",{class:"pr-role",style:`--rc:${ROLE_COLOR[rb]}`},ROLE_LABEL[rb]||"Team"));
+  if(p.name) pl.append(el("span",{class:"pr-name"},p.name));
+  if(p.title) pl.append(el("span",{class:"pr-title"},(p.title||"").slice(0,44)));
+  pl.append(el("span",{class:"grow"}));
+  if(p.profile_url) pl.append(el("a",{href:p.profile_url,target:"_blank"}, p.profile_url.includes("github")?"GitHub ↗":p.profile_url.includes("ycombinator")?"HN ↗":"LinkedIn ↗"));
+  if(p.email){ pl.append(el("span",{class:"email"},"📧 "+p.email)); pl.append(el("span",{class:"em-src"},(p.email_source||"").replace(/^github-/,"git ")||"found")); pl.append(copyBtn(()=>p.email)); }
+  card.append(pl);
+
+  if(!p.id){ card.append(el("div",{class:"why"},"No specific contact yet. Open this company on the Startups page and hit “Find people”.")); return card; }
+
+  // message area
+  const msg=el("div",{class:"msg"});
+  const typeSel=el("select",{class:"f"});
+  typeSel.append(el("option",{value:"auto"},"Auto (by role)"));
+  Object.entries(TYPES).forEach(([v,l])=>typeSel.append(el("option",{value:v},l)));
+  const genBtn=el("button",{class:"mini"},"✨ Generate");
+  const toolbar=el("div",{class:"toolbar"},typeSel,genBtn);
+  msg.append(toolbar);
+  const body=el("div",{});
+  msg.append(body);
+  card.append(msg);
+
+  const doGen=async ()=>{
+    genBtn.disabled=true; genBtn.innerHTML='<span class="spin" style="border-color:rgba(91,141,239,.4);border-top-color:var(--accent)"></span>';
+    try{
+      const r=await (await fetch(`${API}/outreach/message`,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({startup_id:row.startup_id,person_id:p.id,msg_type:typeSel.value})})).json();
+      if(r.ok){ row._msg=r.message; renderMsg(body,row,p); msg.classList.add("open"); }
+    }catch{}
+    genBtn.disabled=false; genBtn.textContent="↻ Regenerate";
+  };
+  genBtn.addEventListener("click",doGen);
+  card._gen=doGen; card._hasMsg=()=>!!row._msg;
+  if(row._msg){ renderMsg(body,row,p); msg.classList.add("open"); genBtn.textContent="↻ Regenerate"; }
+  return card;
+}
+
+function renderMsg(box,row,p){
+  box.innerHTML="";
+  const m=row._msg;
+  // LinkedIn note
+  const note=el("textarea",{class:"note"},m.linkedin_note||"");
+  const nlab=el("div",{class:"lab"},"LinkedIn note",el("span",{class:"grow"}),
+    el("span",{class:"note-count"},(m.linkedin_note||"").length+"/300"),copyBtn(()=>note.value));
+  note.addEventListener("input",()=>{nlab.querySelector(".note-count").textContent=note.value.length+"/300";});
+  box.append(el("div",{class:"fld"},nlab,note));
+  // subject
+  const subj=el("input",{value:m.subject||""});
+  box.append(el("div",{class:"fld"},el("div",{class:"lab"},"Subject",el("span",{class:"grow"}),copyBtn(()=>subj.value)),subj));
+  // email body
+  const eb=el("textarea",{class:"email"},m.email_body||"");
+  const mailto=()=>`mailto:${p.email||""}?subject=${enc(subj.value)}&body=${enc(eb.value)}`;
+  const elab=el("div",{class:"lab"},"Email",el("span",{class:"grow"}),
+    p.email?el("a",{href:mailto(),onclick:(e)=>e.target.href=mailto()},"Open in mail ↗"):null, copyBtn(()=>eb.value));
+  box.append(el("div",{class:"fld"},elab,eb));
+}
+
+async function build(){
+  const btn=document.getElementById("build"); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Building…';
+  const box=document.getElementById("list");
+  try{
+    const r=await (await fetch(`${API}/outreach/list`,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({top_n:+document.getElementById("topn").value, min_fit:+document.getElementById("minfit").value})})).json();
+    if(r.ok){ LIST=r.list; box.innerHTML=""; LIST.forEach(row=>box.append(personCard(row)));
+      document.getElementById("count").textContent=`${r.count} companies`;
+      document.getElementById("genall").style.display=""; }
+    else box.innerHTML=`<div class="empty">Failed: ${r.error||"unknown"}</div>`;
+  }catch(e){ box.innerHTML='<div class="empty">Couldn’t reach the backend. Is <b>./run.sh</b> running?</div>'; }
+  btn.disabled=false; btn.textContent="📋 Build list";
+}
+
+async function generateAll(){
+  const cards=[...document.querySelectorAll(".card")].filter(c=>c._gen && !c._hasMsg());
+  const bar=document.getElementById("bar"); bar.style.display="block"; const fill=bar.querySelector("i");
+  const genall=document.getElementById("genall"); genall.disabled=true;
+  for(let i=0;i<cards.length;i++){ await cards[i]._gen(); fill.style.width=Math.round((i+1)/cards.length*100)+"%"; }
+  genall.disabled=false; setTimeout(()=>bar.style.display="none",800);
+}
+
+async function pullInterns(){
+  const btn=document.getElementById("pull"); btn.disabled=true; const o=btn.textContent;
+  btn.innerHTML='<span class="spin" style="border-color:rgba(91,141,239,.4);border-top-color:var(--accent)"></span> Pulling…';
+  try{
+    const r=await (await fetch(`${API}/interns/ingest`,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({limit:30,max_days:2})})).json();
+    btn.textContent = r.ok ? `➕ Added ${r.ingested}` : "➕ Pull Simplify internships";
+    if(r.ok) await build();   // refresh list to include the Simplify companies
+  }catch{ btn.textContent=o; }
+  btn.disabled=false; setTimeout(()=>{btn.textContent="➕ Pull Simplify internships";},2500);
+}
+document.getElementById("build").addEventListener("click",build);
+document.getElementById("pull").addEventListener("click",pullInterns);
+document.getElementById("genall").addEventListener("click",generateAll);
+</script>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Startup Discovery</title>
+<style>
+  :root {
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#141a1f; --muted:#69727e; --faint:#9aa3ad;
+    --line:#e7eaee; --line-soft:#eef1f4; --accent:#2f6fed; --accent-weak:#e9f0fe;
+    --strong:#16a34a; --warm:#d97706; --cold:#8b97a5;
+    --shadow:0 1px 2px rgba(20,26,31,.04), 0 6px 20px rgba(20,26,31,.05);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  .num { font-variant-numeric:tabular-nums; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  header.top { position:sticky; top:0; z-index:20; background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(180%) blur(8px); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:13px 24px; }
+  header.top h1 { font-size:15px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  header.top .dot { width:7px; height:7px; border-radius:50%; background:var(--strong); }
+  header.top .spacer { flex:1; }
+  header.top a.btn, header.top button {
+    font:inherit; border:1px solid var(--line); background:#fff; color:var(--ink);
+    border-radius:8px; padding:7px 12px; cursor:pointer; font-size:13px; }
+  header.top button:hover, header.top a.btn:hover { border-color:#cfd5dd; text-decoration:none; }
+  header.top button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:650; }
+  header.top button.primary:hover { filter:brightness(1.05); border-color:var(--accent); }
+  header.top button:disabled { opacity:.55; cursor:default; }
+
+  .wrap { max-width:920px; margin:22px auto 60px; padding:0 24px; }
+
+  .controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .chip { font:inherit; font-size:12.5px; font-weight:600; padding:6px 12px; border-radius:999px;
+          border:1px solid var(--line); background:#fff; color:var(--muted); cursor:pointer; }
+  .chip.on { background:var(--accent-weak); border-color:#bcd3fb; color:var(--accent); }
+  .controls .grow { flex:1; }
+  .controls .count { font-size:12.5px; color:var(--muted); }
+  select.f { font:inherit; font-size:12.5px; font-weight:600; padding:6px 8px; border-radius:8px;
+             border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--ink); }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+          box-shadow:var(--shadow); margin-bottom:12px; }
+  .card.hide { display:none; }
+  .row1 { display:flex; align-items:flex-start; gap:12px; }
+  .co { font-weight:700; font-size:15px; letter-spacing:-.01em; }
+  .co .site { font-weight:500; font-size:12px; color:var(--faint); margin-left:8px; }
+  .srcs { display:inline-flex; gap:5px; margin-left:8px; vertical-align:middle; }
+  .src { font-size:10px; font-weight:700; letter-spacing:.02em; padding:2px 7px; border-radius:6px;
+         color:var(--sc); background:color-mix(in srgb, var(--sc) 14%, transparent);
+         border:1px solid color-mix(in srgb, var(--sc) 30%, transparent); }
+  .oneliner { color:#39424c; margin:3px 0 8px; }
+  .meta { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 12px; }
+
+  .fit { flex:none; text-align:center; min-width:58px; }
+  .fit .n { font-size:26px; font-weight:750; line-height:1; letter-spacing:-.02em; }
+  .fit .l { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--faint); font-weight:650; margin-top:2px; }
+
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:650;
+          padding:3px 10px; border-radius:999px; }
+  .pill .dot { width:7px; height:7px; border-radius:50%; }
+  .p-strong { background:rgba(22,163,74,.12); color:var(--strong); }
+  .p-warm   { background:rgba(217,119,6,.12); color:var(--warm); }
+  .p-cold   { background:rgba(139,151,165,.14); color:var(--cold); }
+
+  .signals { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+  .sig { font-size:11.5px; font-weight:600; color:var(--muted); background:var(--line-soft);
+         padding:3px 9px; border-radius:7px; }
+  .reason { font-size:12.5px; color:var(--muted); margin:6px 0 0; }
+  .reason b { color:#39424c; font-weight:600; }
+
+  .contact { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+             margin-top:12px; padding-top:12px; border-top:1px solid var(--line-soft); }
+  .contact .who { font-weight:650; }
+  .contact .ttl { color:var(--muted); font-size:12.5px; }
+  .contact .grow { flex:1; }
+  .act { font:inherit; font-size:12.5px; font-weight:600; padding:6px 11px; border-radius:8px;
+         border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  .act:hover { border-color:#cfd5dd; }
+  .act.mini { padding:5px 10px; font-size:12px; }
+  .card[data-status="saved"] { border-color:#bcd3fb; box-shadow:0 0 0 1px #bcd3fb inset, var(--shadow); }
+  .card[data-status="skipped"] { opacity:.5; }
+  .card[data-status="contacted"] { border-color:#a7e3cf; box-shadow:0 0 0 1px #a7e3cf inset, var(--shadow); }
+  .badge-status { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .bs-saved { color:var(--accent); } .bs-skipped { color:var(--faint); } .bs-contacted { color:var(--strong); }
+
+  /* intel / "why this company?" panel */
+  .intel-btn { font:inherit; font-size:12.5px; font-weight:600; padding:6px 11px; border-radius:8px;
+               border:1px solid var(--line); background:#fff; color:var(--accent); cursor:pointer; }
+  .intel-btn:hover { border-color:#bcd3fb; }
+  .intel { margin-top:12px; padding:14px 16px; border-radius:12px; background:var(--accent-weak);
+           border:1px solid color-mix(in srgb, var(--accent) 22%, transparent); display:none; }
+  .intel.open { display:block; }
+  .intel .why { font-size:13.5px; line-height:1.55; color:var(--ink); }
+  .intel .angle { font-size:12.5px; margin-top:8px; color:#39424c; }
+  .intel .angle b { color:var(--accent); }
+  .intel ul { margin:8px 0 0; padding-left:18px; }
+  .intel li { font-size:12.5px; color:var(--muted); margin:2px 0; }
+  .doss { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px;
+          border-top:1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+  .doss .d { font-size:11.5px; padding:3px 9px; border-radius:7px; background:var(--panel);
+             border:1px solid var(--line); color:var(--muted); }
+  .doss .d b { color:var(--ink); font-weight:600; }
+  .doss .d.fund { color:var(--strong); border-color:color-mix(in srgb, var(--strong) 40%, transparent); }
+
+  /* ranked people list */
+  .person { display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--line);
+            font-size:12.5px; }
+  .person:first-child { border-top:none; }
+  .pr-role { flex:none; font-size:10.5px; font-weight:700; letter-spacing:.02em; padding:2px 8px;
+             border-radius:6px; color:var(--rc); background:color-mix(in srgb, var(--rc) 14%, transparent); }
+  .pr-name { font-weight:650; }
+  .pr-title { color:var(--muted); font-size:11.5px; }
+  .pr-rel { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 4px 4px; }
+  .pr-email { display:flex; align-items:center; gap:8px; margin:1px 0 6px 4px; }
+  .pr-email .em { font-weight:600; font-size:12.5px; }
+  .pr-email .em-src { font-size:10px; font-weight:700; letter-spacing:.02em; padding:2px 7px;
+      border-radius:6px; color:var(--ec); background:color-mix(in srgb, var(--ec) 14%, transparent); }
+  .pr-email .em-copy { font:inherit; font-size:11px; font-weight:600; padding:2px 8px; cursor:pointer;
+      border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--muted); }
+  .pr-email .em-copy:hover { border-color:#cfd5dd; }
+
+  .empty { color:var(--muted); padding:40px; text-align:center; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.5);
+          border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+
+  /* ------------------------- dark mode ------------------------- */
+  @media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#14171b; --panel:#1b1f26; --ink:#e7eaef; --muted:#98a2ae; --faint:#6c7683;
+    --line:#2b313a; --line-soft:#23282f; --accent:#5b8def; --accent-weak:#1e2a3f;
+    --strong:#3ecf8e; --warm:#e0a53b; --cold:#8b97a5;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  header.top { background:rgba(20,23,27,.85); }
+  header.top a.btn, header.top button { background:#22272f; color:var(--ink); }
+  .chip, select.f, .act { background:#22272f; }
+  .chip.on { background:var(--accent-weak); }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <span class="dot"></span>
+    <h1>🚀 Startup Discovery</h1>
+    <span class="spacer"></span>
+    <a class="btn" href="/app/#linkedin/outreach" target="_top">✉️ Outreach queue</a>
+    <button id="discover" class="primary">✨ Discover</button>
+  </header>
+
+  <div class="wrap">
+    <div class="controls" id="controls" style="display:none">
+      <button class="chip" data-filter="hiring">Hiring signal only</button>
+      <select class="f" id="sourcef"><option value="">All sources</option></select>
+      <select class="f" id="minfit">
+        <option value="0">Any fit</option>
+        <option value="50">Fit ≥ 50</option>
+        <option value="60" selected>Fit ≥ 60</option>
+        <option value="70">Fit ≥ 70</option>
+      </select>
+      <select class="f" id="statusf">
+        <option value="">All statuses</option>
+        <option value="new">New</option>
+        <option value="saved">Saved</option>
+        <option value="contacted">Contacted</option>
+        <option value="skipped">Skipped</option>
+      </select>
+      <span class="grow"></span>
+      <span class="count" id="count"></span>
+    </div>
+    <div id="list"><div class="empty">Click <b>✨ Discover</b> to find promising startups worth reaching out to.</div></div>
+  </div>
+
+<script>
+const API = location.origin;
+const el = (t, p={}, ...k) => { const n=document.createElement(t);
+  for (const [key,v] of Object.entries(p)) { if(key==="class")n.className=v; else if(key==="html")n.innerHTML=v;
+    else if(key.startsWith("on"))n.addEventListener(key.slice(2),v); else if(v!=null)n.setAttribute(key,v); }
+  for (const c of k.flat()) if(c!=null) n.append(c.nodeType?c:document.createTextNode(c)); return n; };
+
+let ALL = [];   // last loaded startups (already fit-sorted by the backend)
+const state = { hiring:false, minfit:60, status:"", source:"" };
+
+const fitColor = (n) => n>=70 ? "var(--strong)" : n>=50 ? "var(--warm)" : "var(--cold)";
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./,""); } catch { return ""; } };
+const SRC_COLOR = { YC:"#f26625", HN:"#ff6600", GitHub:"#8957e5" };
+function srcBadge(source) {
+  const wrap = el("span", { class:"srcs" });
+  (source||"").split(",").map(s=>s.trim()).filter(Boolean).forEach(s =>
+    wrap.append(el("span", { class:"src", style:`--sc:${SRC_COLOR[s]||"var(--muted)"}` }, s)));
+  return wrap;
+}
+
+function card(s) {
+  const c = el("div", { class:"card", "data-id":s.id, "data-status":s.status });
+
+  // fit score block
+  const fit = el("div", { class:"fit" },
+    el("div", { class:"n num", style:`color:${fitColor(s.fit_score)}` }, String(s.fit_score)),
+    el("div", { class:"l" }, "fit"));
+
+  // hiring label pill
+  const hl = s.hiring_label || "cold";
+  const pill = el("span", { class:`pill p-${hl}` },
+    el("span", { class:"dot", style:`background:${hl==="strong"?"var(--strong)":hl==="warm"?"var(--warm)":"var(--cold)"}` }),
+    hl + " hiring signal");
+
+  // header line
+  const title = el("div", {}, el("div", { class:"row1", style:"justify-content:space-between;align-items:baseline" },
+      el("div", {}, el("span", { class:"co" },
+          s.website ? el("a", { href:s.website, target:"_blank" }, s.name) : s.name),
+        s.website ? el("span", { class:"site" }, hostOf(s.website)) : null,
+        srcBadge(s.source)),
+      pill));
+
+  const metaBits = [
+    Number.isFinite(s.team_size) && s.team_size>0 ? `${s.team_size} people` : null,
+    s.batch || null, s.stage || null, s.industry || null,
+    s.location || null,
+  ].filter(Boolean);
+
+  const body = el("div", { style:"flex:1;min-width:0" },
+    title,
+    s.one_liner ? el("div", { class:"oneliner" }, s.one_liner) : null,
+    el("div", { class:"meta" }, ...metaBits.map(m => el("span", {}, m))),
+    (s.hiring_signals && s.hiring_signals.length)
+      ? el("div", { class:"signals" }, ...s.hiring_signals.map(x => el("span", { class:"sig" }, x))) : null,
+    s.fit_reason ? el("div", { class:"reason", html:`<b>Why fit:</b> ${escapeHtml(s.fit_reason)}` }) : null,
+  );
+
+  c.append(el("div", { class:"row1" }, body, fit));
+  c.append(contactRow(s, c));
+  c.append(intelSection(s));
+  return c;
+}
+
+function intelSection(s) {
+  const wrap = el("div", {});
+  const panel = el("div", { class:"intel" });
+  const btn = el("button", { class:"intel-btn" }, s.intel ? "🔍 Why this company?" : "🔍 Why this company?");
+  btn.addEventListener("click", async () => {
+    if (panel.classList.contains("open")) { panel.classList.remove("open"); return; }
+    if (s.intel) { renderIntel(panel, s.intel); panel.classList.add("open"); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spin" style="border-color:rgba(91,141,239,.4);border-top-color:var(--accent)"></span> Researching…';
+    try {
+      const r = await (await fetch(`${API}/startups/${s.id}/intel`, { method:"POST" })).json();
+      if (r.ok) { s.intel = r.intel; renderIntel(panel, r.intel); panel.classList.add("open"); }
+    } catch {}
+    btn.disabled = false; btn.textContent = "🔍 Why this company?";
+  });
+  // put the button on the same line as the contact actions area feel — simple row
+  wrap.append(el("div", { style:"margin-top:10px" }, btn), panel);
+  return wrap;
+}
+
+function renderIntel(panel, intel) {
+  panel.innerHTML = "";
+  const d = intel.dossier || {};
+  if (intel.why_this_company) panel.append(el("div", { class:"why" }, intel.why_this_company));
+  if (intel.best_angle) panel.append(el("div", { class:"angle", html:`<b>Best angle:</b> ${escapeHtml(intel.best_angle)}` }));
+  if (intel.relevance_bullets && intel.relevance_bullets.length)
+    panel.append(el("ul", {}, ...intel.relevance_bullets.map(b => el("li", {}, b))));
+
+  const doss = el("div", { class:"doss" });
+  const chip = (label, cls) => el("span", { class:"d"+(cls?" "+cls:""), html:label });
+  if (d.tech_stack && d.tech_stack.length) doss.append(chip(`<b>Stack:</b> ${escapeHtml(d.tech_stack.slice(0,6).join(", "))}`));
+  if (d.founders && d.founders.length) doss.append(chip(`<b>Founders:</b> ${escapeHtml(d.founders.map(f=>f.name).join(", "))}`));
+  if (d.recent_launches && d.recent_launches.length) doss.append(chip(`<b>Latest:</b> ${escapeHtml(d.recent_launches[0])}`));
+  (d.recent_news||[]).slice(0,1).forEach(n => {
+    const fund = /rais|fund|seed|series|\$/i.test(n.title);
+    doss.append(chip(`<b>News:</b> ${escapeHtml(n.title)}`, fund ? "fund" : ""));
+  });
+  if (d.hiring_activity && d.hiring_activity.length) doss.append(chip(`<b>Hiring:</b> ${escapeHtml(d.hiring_activity.join(" · "))}`));
+  if (doss.children.length) panel.append(doss);
+}
+
+const ROLE_LABEL = { founder_cto:"Founder/CTO", eng_manager:"Eng Manager", engineer:"Engineer",
+                     recruiter:"Recruiter", other:"Team" };
+const EMAIL_SRC = {
+  "github-profile":{ t:"GitHub profile", c:"var(--strong)" },
+  "github-commit": { t:"git commit", c:"var(--strong)" },
+  "hn":            { t:"HN post", c:"var(--warm)" },
+  "role-inbox":    { t:"role inbox", c:"var(--cold)" },
+};
+function emailSrcMeta(s){ if(EMAIL_SRC[s]) return EMAIL_SRC[s];
+  if((s||"").startsWith("hunter")) return { t:"Hunter verified", c:"var(--accent)" };
+  return { t:s||"found", c:"var(--muted)" }; }
+const ROLE_COLOR = { founder_cto:"var(--strong)", eng_manager:"var(--accent)", engineer:"var(--warm)",
+                     recruiter:"var(--cold)", other:"var(--cold)" };
+
+function contactRow(s, c) {
+  const wrap = el("div", {});
+  const row = el("div", { class:"contact" });
+
+  // recommended-contact summary (populated once people have been discovered)
+  if (s.contact_name) {
+    row.append(el("span", { class:"who" }, "👤 " + s.contact_name));
+    if (s.contact_title) row.append(el("span", { class:"ttl" }, (s.contact_title||"").slice(0,42)));
+    if (s.contact_linkedin) row.append(el("a", { href:s.contact_linkedin, target:"_blank" },
+      s.contact_linkedin.includes("github.com") ? "GitHub ↗" : "LinkedIn ↗"));
+  }
+  row.append(el("span", { class:"grow" }));
+  if (s.status && s.status!=="new")
+    row.append(el("span", { class:`badge-status bs-${s.status}` }, s.status));
+  for (const [label, st] of [["★ Save","saved"],["Skip","skipped"],["✓ Contacted","contacted"]]) {
+    if (s.status === st) continue;
+    row.append(el("button", { class:"act mini", onclick: () => setStatus(s, st, c) }, label));
+  }
+  wrap.append(row);
+
+  // "Find people" → ranked contact panel
+  const panel = el("div", { class:"intel", style:"background:var(--line-soft);border-color:var(--line)" });
+  const btn = el("button", { class:"intel-btn", style:"margin-top:10px" }, "👥 Find people to contact");
+  btn.addEventListener("click", async () => {
+    if (panel.classList.contains("open")) { panel.classList.remove("open"); return; }
+    if (s._people) { renderPeople(panel, s._people, s, c); panel.classList.add("open"); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spin" style="border-color:rgba(91,141,239,.4);border-top-color:var(--accent)"></span> Finding people…';
+    try {
+      const r = await (await fetch(`${API}/startups/${s.id}/contacts`, { method:"POST" })).json();
+      if (r.ok) {
+        s._people = r.contacts;
+        if (r.contacts[0]) { s.contact_name = r.contacts[0].name; s.contact_title = r.contacts[0].title;
+                             s.contact_linkedin = r.contacts[0].profile_url; }
+        renderPeople(panel, r.contacts, s, c); panel.classList.add("open");
+      }
+    } catch {}
+    btn.disabled = false; btn.textContent = "👥 Find people to contact";
+  });
+  wrap.append(btn, panel);
+  return wrap;
+}
+
+function renderPeople(panel, ppl, s, c) {
+  panel.innerHTML = "";
+  if (!ppl.length) { panel.append(el("div", { class:"angle" }, "No public people found for this company. Use the LinkedIn search on the company instead.")); return; }
+  ppl.forEach(p => {
+    const rb = p.role_bucket || "other";
+    const linkLabel = p.source==="search" ? "Search LinkedIn ↗"
+      : p.profile_url && p.profile_url.includes("github.com") ? "GitHub ↗"
+      : p.profile_url && p.profile_url.includes("news.ycombinator") ? "HN ↗" : "LinkedIn ↗";
+    // linkedin_url is separate from profile_url whenever profile_url is a GitHub/HN verification
+    // link — show both: the real profile to confirm who this is, plus a name-targeted LinkedIn
+    // search (precise enough the right person is normally the top hit).
+    const showLinkedinSeparately = p.linkedin_url && p.linkedin_url !== p.profile_url;
+    const line = el("div", { class:"person" },
+      el("span", { class:"pr-role", style:`--rc:${ROLE_COLOR[rb]}` }, ROLE_LABEL[rb] || "Team"),
+      p.name ? el("span", { class:"pr-name" }, (p.is_recommended ? "★ " : "") + p.name) : null,
+      p.title ? el("span", { class:p.name ? "pr-title" : "pr-name" }, (p.title||"").slice(0,56)) : null,
+      el("span", { class:"grow" }),
+      showLinkedinSeparately ? el("a", { href:p.linkedin_url, target:"_blank" }, "LinkedIn ↗") : null,
+      p.profile_url ? el("a", { href:p.profile_url, target:"_blank" }, linkLabel) : null);
+    panel.append(line);
+    if (p.email) {
+      const src = emailSrcMeta(p.email_source);
+      panel.append(el("div", { class:"pr-email" },
+        el("a", { href:`mailto:${p.email}`, class:"em" }, "📧 " + p.email),
+        el("span", { class:"em-src", style:`--ec:${src.c}` }, src.t),
+        el("button", { class:"em-copy", onclick:(e)=>{ navigator.clipboard?.writeText(p.email);
+          e.target.textContent="✓"; setTimeout(()=>e.target.textContent="Copy",1200); } }, "Copy")));
+    }
+    if (p.relationship && p.relationship.length)
+      panel.append(el("div", { class:"pr-rel" }, ...p.relationship.map(x => el("span", { class:"sig" }, "🔗 " + x))));
+  });
+}
+
+async function setStatus(s, st, c) {
+  try {
+    const r = await (await fetch(`${API}/startups/${s.id}`, { method:"PATCH",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({ status:st }) })).json();
+    if (r.ok) { s.status = st; const nc = card(s); c.replaceWith(nc); applyFilters(); }
+  } catch {}
+}
+
+function escapeHtml(x){ const d=document.createElement("div"); d.textContent=x; return d.innerHTML; }
+
+function render(list) {
+  const box = document.getElementById("list");
+  box.innerHTML = "";
+  if (!list.length) { box.append(el("div", { class:"empty" }, "No startups match these filters.")); return; }
+  list.forEach(s => box.append(card(s)));
+}
+
+function populateSources() {
+  const sel = document.getElementById("sourcef");
+  const counts = {};
+  ALL.forEach(s => (s.source||"").split(",").map(x=>x.trim()).filter(Boolean)
+    .forEach(x => counts[x] = (counts[x]||0)+1));
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All sources</option>';
+  Object.keys(counts).sort().forEach(x =>
+    sel.append(el("option", { value:x }, `${x} (${counts[x]})`)));
+  sel.value = cur;
+}
+
+function applyFilters() {
+  document.getElementById("controls").style.display = ALL.length ? "flex" : "none";
+  const shown = ALL.filter(s =>
+    (!state.hiring || s.is_hiring) &&
+    s.fit_score >= state.minfit &&
+    (!state.status || s.status === state.status) &&
+    (!state.source || (s.source||"").split(",").map(x=>x.trim()).includes(state.source)));
+  document.getElementById("count").textContent =
+    `${shown.length} of ${ALL.length} shown`;
+  render(shown);
+}
+
+async function loadExisting() {
+  try {
+    const r = await (await fetch(`${API}/startups?limit=800`)).json();
+    if (r.ok && r.startups.length) { ALL = r.startups; populateSources(); applyFilters(); }
+  } catch {}
+}
+
+async function discover() {
+  const btn = document.getElementById("discover");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Discovering…';
+  try {
+    const r = await (await fetch(`${API}/startups/discover`, { method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ recent_only:true, hiring_only:true, limit:800 }) })).json();
+    if (r.ok) { ALL = r.startups; populateSources(); applyFilters(); }
+    else document.getElementById("list").innerHTML =
+      `<div class="empty">Discovery failed: ${escapeHtml(r.error||"unknown")}</div>`;
+  } catch (e) {
+    document.getElementById("list").innerHTML =
+      '<div class="empty">Couldn’t reach the backend. Is <b>./run.sh</b> running?</div>';
+  } finally { btn.disabled = false; btn.textContent = "✨ Discover"; }
+}
+
+document.getElementById("discover").addEventListener("click", discover);
+document.querySelector('[data-filter="hiring"]').addEventListener("click", (e) => {
+  state.hiring = !state.hiring; e.target.classList.toggle("on", state.hiring); applyFilters();
+});
+document.getElementById("minfit").addEventListener("change", (e) => { state.minfit = +e.target.value; applyFilters(); });
+document.getElementById("statusf").addEventListener("change", (e) => { state.status = e.target.value; applyFilters(); });
+document.getElementById("sourcef").addEventListener("change", (e) => { state.source = e.target.value; applyFilters(); });
+
+loadExisting();
+</script>
+</body>
+</html>

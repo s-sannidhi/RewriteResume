@@ -1,0 +1,54 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# JS
+node_modules/
+
+# Generated documents / resumes
+*.pdf
+
+# --- Personal data (NEVER commit — lives in ~/ResumeRewriter) -----------------
+# The app reads/writes ~/ResumeRewriter only. A local `data/` folder may exist as
+# an optional private mirror (see `python scripts/backup_data.py sync`); it must
+# never be pushed. Making the remote public with these files in git history would
+# leak them — use `scripts/make_public_clean.sh` to publish a scrubbed copy.
+data/
+ResumeRewriter/
+profile.json
+profile.json.bak
+*.bak
+*.db
+*.sqlite
+*.sqlite3
+
+# Portable data bundles from scripts/backup_data.py — these contain your whole profile,
+# résumé history and Q&A memory. NEVER commit one; carry it yourself (USB / private drive).
+resumerewriter-backup*.zip
+*-backup-*.zip
+skills_verified.yaml
+
+# Secrets / credentials / env
+.env
+.env.*
+*.pem
+*.key
+*.p12
+secrets.json
+credentials.json
+*credentials*
+*_secret*
+
+# Logs
+*.log
+
+# Local Claude/agent config
+.claude/settings.local.json

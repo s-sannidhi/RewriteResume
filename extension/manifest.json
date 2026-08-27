@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Resume Rewriter",
+  "version": "0.1.0",
+  "description": "Read a job description off the page and tailor a 1-page resume (local, single-user).",
+  "permissions": ["activeTab", "scripting", "sidePanel", "debugger", "storage", "tabs", "clipboardWrite", "alarms", "unlimitedStorage"],
+  "host_permissions": ["http://127.0.0.1:8765/*", "http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["learn.js", "suggest.js"],
+      "run_at": "document_idle", "all_frames": true }
+  ],
+  "action": { "default_title": "Resume Rewriter" },
+  "side_panel": { "default_path": "sidepanel.html" }
+}
