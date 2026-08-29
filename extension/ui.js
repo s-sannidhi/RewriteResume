@@ -8,7 +8,17 @@
   const clamp = (v) => Math.min(MAX, Math.max(MIN, Math.round(v * 100) / 100));
 
   function apply() {
-    document.documentElement.style.zoom = String(scale);
+    const root = document.documentElement;
+    root.style.zoom = String(scale);
+    // Firefox 126+ honors zoom; older builds ignore it — scale via transform as a fallback.
+    if (typeof CSS === "undefined" || !CSS.supports || !CSS.supports("zoom", "1")) {
+      root.style.transform = "scale(" + scale + ")";
+      root.style.transformOrigin = "top left";
+      root.style.width = (100 / scale) + "%";
+    } else {
+      root.style.transform = "";
+      root.style.width = "";
+    }
     const lab = document.getElementById("scaleLabel");
     if (lab) lab.textContent = Math.round(scale * 100) + "%";
   }

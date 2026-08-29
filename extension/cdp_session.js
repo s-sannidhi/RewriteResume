@@ -17,6 +17,7 @@
 
   async function isAttached(tabId) {
     try {
+      if (!(chrome.debugger && chrome.debugger.getTargets)) return false;
       const targets = await chrome.debugger.getTargets();
       return targets.some((t) => t.tabId === tabId && t.attached);
     } catch (e) { return false; }
@@ -31,6 +32,9 @@
 
   /** Ensure a debugger session exists for this tab. Returns {ok, error, owned}. */
   async function acquire(tabId) {
+    if (!(chrome.debugger && chrome.debugger.attach)) {
+      return { ok: false, error: "this browser has no debugger API (use Firefox file-attach instead)" };
+    }
     if (await isAttached(tabId)) return { ok: true, owned: false };
     try {
       await chrome.debugger.attach({ tabId }, "1.3");

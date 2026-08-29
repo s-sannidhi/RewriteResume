@@ -171,6 +171,10 @@
 
   // ============================ the fill ============================
   async function fillEducationViaDebugger(tab, entries) {
+    if (!(typeof rrHasDebugger === "function" ? rrHasDebugger()
+          : !!(chrome.debugger && chrome.debugger.sendCommand))) {
+      return { error: "Workday education fill needs Chrome's debugger API for trusted typing. Add school/field by hand in Firefox, or run this step in Chrome." };
+    }
     const target = { tabId: tab.id };
     const acq = await rrCdpAcquire(tab.id);
     if (!acq.ok) return { error: "Couldn't attach. " + acq.error };

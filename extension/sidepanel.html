@@ -56,7 +56,8 @@
   details.help { margin-top:12px; }
   details.help > summary { cursor:pointer; color:var(--muted); font-size:12px; list-style:none;
                            padding:2px 0; }
-  details.help > summary::-webkit-details-marker { display:none; }
+  details.help > summary::-webkit-details-marker,
+  details.help > summary::-moz-list-bullet { display:none; }
   details.help > summary::before { content:"ⓘ  "; }
   details.help[open] > summary::before { content:"▾  "; }
   details.help .help-body { color:var(--muted); font-size:11.5px; line-height:1.55; margin-top:6px; }
@@ -306,7 +307,7 @@
       <div class="card-title">📎 Uploads</div>
       <div class="card-sub">Turn on <b>Auto-upload resume</b> to drop this job’s résumé (and cover /
         transcript when labelled) into matching upload boxes as pages load. Off by default — no
-        Chrome debug banner while browsing. Or tap a doc below / use Attach now.</div>
+        debug banner while browsing. Or tap a doc below / use Attach now.</div>
       <div class="row" style="justify-content:space-between;font-size:11.5px;margin-bottom:6px">
         <span class="muted">Auto-upload resume</span>
         <select id="autoAttachMode" style="width:auto;padding:3px 6px">
@@ -448,6 +449,7 @@
   <script src="sidepanel.js"></script>
   <script src="cdp_session.js"></script>
   <script src="upload_match.js"></script>
+  <script src="files_place.js"></script>
   <script src="autofill.js"></script>
   <script src="cdp_input.js"></script>
   <script src="upload_smart.js"></script>

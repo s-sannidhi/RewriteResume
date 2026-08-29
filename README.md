@@ -133,10 +133,34 @@ commented example to edit. The Skills section stays empty until you list skills 
 else on earth can add to it, not the posting and not the model. See
 [Verified skills](#verified-skills) below for the format and why.
 
-### The Chrome extension
+### The browser extension
 
-`chrome://extensions` → turn on **Developer mode** → **Load unpacked** → select the `extension`
-folder. The side panel reads job postings and drives résumé generation.
+The website at **http://127.0.0.1:8765/app/** works in any browser, including Firefox. The
+extension (reads the posting off the page, autofills, attaches PDFs) works in **Chrome / Edge**
+and **Firefox 128+**.
+
+**Chrome / Edge:** `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → select
+the `extension` folder. Click the toolbar icon to open the side panel.
+
+**Firefox** — do not use `about:addons` or “Install Add-on From File” (that path expects a signed
+`.xpi` and will reject this folder). Load it as a temporary add-on:
+
+1. In the address bar open `about:debugging#/runtime/this-firefox`.
+2. Click **This Firefox** in the left sidebar if you aren’t already there.
+3. Click **Load Temporary Add-on…**
+4. Select **any file inside** the `extension` folder — `manifest.json` is the usual choice.
+   Picking the folder itself does nothing; it has to be a file.
+5. Open the panel: click the **Resume Rewriter** icon on the toolbar, **or**
+   **View → Sidebar → Resume Rewriter**. Firefox puts it in the sidebar (left or right), not
+   Chrome’s side-panel tray.
+6. Pin the icon (toolbar puzzle-piece → pin) so you can find it next time.
+
+Firefox unloads temporary add-ons when the browser quits. After a restart, repeat steps 1–4
+(your settings and generated docs are on disk; only the add-on itself needs reloading).
+
+Same features as Chrome for reading JDs, generating docs, attaching files, and filling ordinary
+forms. Workday *work experience* and *education* fills need Chrome (trusted typing). Workday
+*skills* and non-Workday applications work in Firefox.
 
 ### Models
 
@@ -190,7 +214,7 @@ The split that keeps it honest: **Python owns the facts, the LLM only owns the w
   still fits, and only trims a bullet if the smallest scale still overflows.
 
 ```
-extension/   Chrome MV3 side panel: reads postings, drives generation, autofills forms
+extension/   MV3 side panel (Chrome) / sidebar (Firefox): reads postings, drives generation, autofills forms
 backend/     FastAPI app (127.0.0.1 only)
   resume/    builder → quality checks → Playwright PDF
   discovery/ company + contact discovery, outreach drafting
@@ -222,3 +246,7 @@ Either fill in the Resume tab, or bring your data over:
 `profile_ready` and `skills_file` if you want to check what the server can see.
 
 **Port 8765 in use** — pass a different one: `./run.sh --port 8799`.
+
+**Firefox: “This add-on could not be installed” / no Load Temporary Add-on** — you went through
+`about:addons`. Use `about:debugging` instead (see [The browser extension](#the-browser-extension)).
+If the add-on vanished after you closed Firefox, that is expected: load it again the same way.

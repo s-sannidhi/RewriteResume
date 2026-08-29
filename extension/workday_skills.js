@@ -25,6 +25,10 @@
   //   "react" = React-props injection only (MAIN world, no debugger banner)
   //   "cdp"   = chrome.debugger TRUSTED input (isTrusted:true) — needed by tenants whose skill
   //             search runs off real keystrokes, which is the case on this user's Vanguard tenant.
+  const HAS_CDP = typeof rrHasDebugger === "function"
+    ? rrHasDebugger()
+    : !!(typeof chrome !== "undefined" && chrome.debugger && chrome.debugger.sendCommand);
+  const NO_CDP_MSG = "Trusted typing needs Chrome (debugger API). In Firefox, use the React fill engine.";
   const DEFAULT_ENGINE = "auto";
 
   // JS run in the page to find + scroll the skills box and return its viewport-center
@@ -174,6 +178,7 @@
 
   // ---- CDP-driven SKILLS fill (trusted input) ----
   async function fillViaDebugger(tab, skills, onProgress, freeText) {
+    if (!HAS_CDP) return { error: NO_CDP_MSG };
     const target = { tabId: tab.id };
     const acq = await rrCdpAcquire(tab.id);
     if (!acq.ok) return { error: "Couldn't attach. " + acq.error };
@@ -883,6 +888,10 @@
                 added: probe.added + rest.added, already: probe.already + rest.already,
                 missed: [...(probe.missed || []), ...(rest.missed || [])],
                 substituted: [...(probe.substituted || []), ...(rest.substituted || [])] };
+        } else if (!HAS_CDP) {
+          setSt("React engine got no matches, and trusted typing isn't available in this browser. "
+                + "Try the React fill engine, or run this step in Chrome.", "err");
+          r = { error: NO_CDP_MSG };
         } else {
           setSt('React engine got no matches — switching to trusted typing. Chrome will show a '
                 + '"debugging" banner while it types; leave this tab in front.');
@@ -890,9 +899,12 @@
           r.viaFallback = true;
         }
       } else if (engine === "freetext") {
-        setSt('Typing each skill and pressing Enter — no list matching. Chrome will show a '
-              + '"debugging" banner; leave this tab in front.');
-        r = await fillViaDebugger(tab, skills, prog, true);
+        if (!HAS_CDP) { r = { error: NO_CDP_MSG }; }
+        else {
+          setSt('Typing each skill and pressing Enter — no list matching. Chrome will show a '
+                + '"debugging" banner; leave this tab in front.');
+          r = await fillViaDebugger(tab, skills, prog, true);
+        }
       } else {
         r = useReact
           ? await fillSkillsReact(tab, skills, prog)
@@ -948,9 +960,20 @@
       btn.dataset.wired = "1";
       const sel = $(c.mode);
       if (sel) {
+        if (!HAS_CDP) {
+          [...sel.querySelectorAll('option')].forEach((o) => {
+            if (o.value === "cdp" || o.value === "freetext") o.remove();
+          });
+          const auto = sel.querySelector('option[value="auto"]');
+          if (auto) auto.textContent = "Auto — React fill (Firefox)";
+        }
         // One shared preference behind both dropdowns — switching mode in one card must not
         // leave the other silently on the old setting.
-        chrome.storage.local.get(MODE_KEY, (r) => { const m = r && r[MODE_KEY]; if (m) sel.value = m; });
+        chrome.storage.local.get(MODE_KEY, (r) => {
+          const m = r && r[MODE_KEY];
+          if (m && [...sel.options].some((o) => o.value === m)) sel.value = m;
+          else if (!HAS_CDP) sel.value = "auto";
+        });
         sel.addEventListener("change", () => {
           chrome.storage.local.set({ [MODE_KEY]: sel.value });
           WD_CARDS.forEach((o) => { const s2 = $(o.mode); if (s2 && s2 !== sel) s2.value = sel.value; });
@@ -1070,6 +1093,7 @@
   `;
 
   async function fillWorkViaDebugger(tab, entries) {
+    if (!HAS_CDP) return { error: "Workday work-experience fill needs Chrome's debugger API for trusted typing. Firefox can still fill skills (React) and regular form fields." };
     const target = { tabId: tab.id };
     const acq = await rrCdpAcquire(tab.id);
     if (!acq.ok) return { error: "Couldn't attach. " + acq.error };
@@ -1298,8 +1322,8 @@
     const { entries, label } = await workForActiveJob(host);
     if (!entries.length) { setWorkSt("No work experience — generate a résumé for this job first.", "err"); return; }
     btn.disabled = true;
-    setWorkSt(`Filling ${entries.length} work experience(s) ${label}… leave this tab in front; `
-      + `Chrome shows a "debugging" banner while it types.`);
+    setWorkSt(`Filling ${entries.length} work experience(s) ${label}… leave this tab in front`
+      + (HAS_CDP ? `; Chrome shows a "debugging" banner while it types.` : "."));
     try {
       const r = await fillWorkViaDebugger(tab, entries);
       if (r.error) setWorkSt(r.error, "err");

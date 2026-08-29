@@ -5,7 +5,11 @@
 // batch run itself (rr_batch): on SW restart mid-batch we resume from wherever storage says
 // we were, and Stop survives eviction because the cancel flag is mirrored to storage.
 
-importScripts("jd_detect.js");   // for rrJobId (pure function, no DOM use on this path)
+// Chrome MV3 is a service worker (importScripts). Firefox may run the same files as an event
+// page via background.scripts — they're already loaded then, and importScripts isn't defined.
+if (typeof importScripts === "function") {
+  importScripts("jd_detect.js");   // for rrJobId (pure function, no DOM use on this path)
+}
 
 const STORE = "rr_jobs";
 const BATCH = "rr_batch";
@@ -16,7 +20,19 @@ const KEEPALIVE_JD = "rr-keepalive-jd";
 const PENDING_JD = "rr_pending_jd";   // durable, so an evicted worker can finish the job
 const LEARN_LOG = "rr_learn_log";
 
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e) => console.error(e));
+if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e) => console.error(e));
+}
+// Firefox: clicking the toolbar button opens the sidebar. Chrome with setPanelBehavior
+// swallows action.onClicked, so this only runs where the side-panel API is missing.
+if (chrome.sidebarAction && chrome.action && chrome.action.onClicked) {
+  chrome.action.onClicked.addListener(() => {
+    try {
+      const p = chrome.sidebarAction.open();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (e) {}
+  });
+}
 
 async function getJobs() {
   return (await chrome.storage.local.get(STORE))[STORE] || {};
@@ -45,8 +61,14 @@ const API = "http://127.0.0.1:8765";
 
 // Loaded here, not at the top: filepicker.js closes over API, STORE and rrJobId.
 // upload_match.js first — filepicker's auto-attach calls classifyUploadArea/chooseUploadTarget.
-importScripts("upload_match.js");
-importScripts("filepicker.js");
+if (typeof importScripts === "function") {
+  importScripts("upload_match.js");
+  importScripts("files_place.js");
+  importScripts("filepicker.js");
+}
+if (typeof rrAlarmPeriod !== "function") {
+  globalThis.rrAlarmPeriod = (m) => m;
+}
 
 let cancelBatch = false;     // in-memory fast path; the durable copy lives in rr_batch.cancel
 let batchAbort = null;       // aborts the in-flight fetch on Stop
@@ -184,7 +206,7 @@ async function runFromJD(jobId, jd_text, attempt = 0) {
   // without a keepalive this reliably died PART WAY THROUGH: the job showed "making-resume",
   // the worker was killed, and nothing ever finished or appeared in Docs. runBatch has always
   // had this alarm; this path never did.
-  chrome.alarms.create(KEEPALIVE_JD, { periodInMinutes: 0.4 });
+  chrome.alarms.create(KEEPALIVE_JD, { periodInMinutes: rrAlarmPeriod(0.4) });
   await chrome.storage.local.set({ [PENDING_JD]: { jobId, jd_text, attempt, at: Date.now() } });
   try {
     return await runFromJDInner(jobId, jd_text);
@@ -235,7 +257,7 @@ async function runBatch({ windowId, tabIds, limitMs, deadline } = {}) {
   const dl = deadline || (limitMs > 0 ? Date.now() + limitMs : null);
   await setBatch({ active: true, cancel: false, windowId: windowId || null,
     tabIds: tabIds || null, startedAt: Date.now(), deadline: dl, timedOut: false });
-  chrome.alarms.create(KEEPALIVE, { periodInMinutes: 0.4 });
+  chrome.alarms.create(KEEPALIVE, { periodInMinutes: rrAlarmPeriod(0.4) });
   // Keep suggestion chips alive while the batch owns the worker — refresh the cached profile
   // up front so content scripts aren't left with an empty rr_profile if the SW was cold.
   refreshProfileToStorage().catch(() => {});
@@ -528,12 +550,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // declared because it uses both. The listeners below are registered at TOP LEVEL so an evicted
 // service worker is woken by the events rather than missing them.
 
-chrome.debugger.onEvent.addListener((source, method, params) => {
-  if (method !== "Page.fileChooserOpened" || !source.tabId) return;
-  armedTabs().then((set) => {
-    if (set.has(source.tabId)) onFileChooser(source.tabId, params).catch((e) => console.error(e));
+if (chrome.debugger && chrome.debugger.onEvent) {
+  chrome.debugger.onEvent.addListener((source, method, params) => {
+    if (method !== "Page.fileChooserOpened" || !source.tabId) return;
+    armedTabs().then((set) => {
+      if (set.has(source.tabId)) onFileChooser(source.tabId, params).catch((e) => console.error(e));
+    });
   });
-});
+}
 
 async function batchRunning() {
   try { return !!(await getBatch()).active; } catch (e) { return false; }
@@ -568,8 +592,10 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     if (tabId in marks) { delete marks[tabId]; await chrome.storage.local.set({ [ATTACHED_MARK]: marks }); }
   } catch (e) {}
 });
-chrome.debugger.onDetach.addListener(async (source) => {
-  if (!source.tabId) return;
-  const set = await armedTabs();
-  if (set.delete(source.tabId)) await setArmedTabs(set);
-});
+if (chrome.debugger && chrome.debugger.onDetach) {
+  chrome.debugger.onDetach.addListener(async (source) => {
+    if (!source.tabId) return;
+    const set = await armedTabs();
+    if (set.delete(source.tabId)) await setArmedTabs(set);
+  });
+}

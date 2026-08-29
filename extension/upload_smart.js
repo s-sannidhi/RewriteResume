@@ -140,7 +140,7 @@
     return { resume, cover, transcript, notes, scored };
   }
 
-  // ---- placement (needs chrome.debugger — only a real File can satisfy an <input type=file>) ----
+  // ---- placement (Chrome: debugger disk path; Firefox: backend blob + DataTransfer) ----
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function smartUpload(tab, files, onStatus) {
@@ -169,26 +169,36 @@
       return out;
     }
 
-    const target = { tabId: tab.id };
-    const acq = await rrCdpAcquire(tab.id);
-    if (!acq.ok) { out.error = acq.error; return out; }
-    const cmd = (m, p) => chrome.debugger.sendCommand(target, m, p || {});
+    const useCdp = typeof rrHasDebugger === "function" && rrHasDebugger();
+    let cmd = null;
+    if (useCdp) {
+      const acq = await rrCdpAcquire(tab.id);
+      if (!acq.ok) { out.error = acq.error; return out; }
+      const target = { tabId: tab.id };
+      cmd = (m, p) => chrome.debugger.sendCommand(target, m, p || {});
+    }
     try {
       for (const j of jobs) {
         say(`Uploading ${j.kind}…`);
-        const objRes = await cmd("Runtime.evaluate", {
-          expression: `document.querySelectorAll('input[type=file]')[${j.i}]`, returnByValue: false });
-        const objectId = objRes && objRes.result && objRes.result.objectId;
-        if (!objectId) { out.failed.push({ ...j, why: "field disappeared" }); continue; }
-        await cmd("DOM.setFileInputFiles", { files: [j.path], objectId });
-        await sleep(450);
-        const chk = await cmd("Runtime.evaluate", {
-          expression: `(document.querySelectorAll('input[type=file]')[${j.i}].files||[]).length>0`,
-          returnByValue: true });
-        if (chk && chk.result && chk.result.value) out.placed.push(j);
-        else out.failed.push({ ...j, why: "the page rejected the file" });
+        if (useCdp) {
+          const objRes = await cmd("Runtime.evaluate", {
+            expression: `document.querySelectorAll('input[type=file]')[${j.i}]`, returnByValue: false });
+          const objectId = objRes && objRes.result && objRes.result.objectId;
+          if (!objectId) { out.failed.push({ ...j, why: "field disappeared" }); continue; }
+          await cmd("DOM.setFileInputFiles", { files: [j.path], objectId });
+          await sleep(450);
+          const chk = await cmd("Runtime.evaluate", {
+            expression: `(document.querySelectorAll('input[type=file]')[${j.i}].files||[]).length>0`,
+            returnByValue: true });
+          if (chk && chk.result && chk.result.value) out.placed.push(j);
+          else out.failed.push({ ...j, why: "the page rejected the file" });
+        } else {
+          const r = await rrPlaceFileBlob(tab.id, j.i, j.path);
+          if (r.ok) out.placed.push(j);
+          else out.failed.push({ ...j, why: r.error || "the page rejected the file" });
+        }
       }
-    } finally { await rrCdpRelease(tab.id); }
+    } finally { if (useCdp) await rrCdpRelease(tab.id); }
     return out;
   }
 

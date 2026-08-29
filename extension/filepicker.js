@@ -59,12 +59,16 @@ async function setArmedTabs(set) {
 const fpSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function dbg(tabId, method, params) {
+  if (!(chrome.debugger && chrome.debugger.sendCommand)) {
+    return Promise.reject(new Error("no debugger API"));
+  }
   return chrome.debugger.sendCommand({ tabId }, method, params || {});
 }
 
 // Turn interception on for a tab. Safe to call repeatedly — re-arming after a navigation is the
 // normal case, since a page load resets the flag.
 async function armTab(tabId) {
+  if (!(chrome.debugger && chrome.debugger.attach)) return;
   const already = (await chrome.debugger.getTargets())
     .some((t) => t.tabId === tabId && t.attached);
   if (!already) {
@@ -89,7 +93,7 @@ async function disarmTab(tabId) {
   set.delete(tabId);
   await setArmedTabs(set);
   try { await dbg(tabId, "Page.setInterceptFileChooserDialog", { enabled: false }); } catch (e) {}
-  try { await chrome.debugger.detach({ tabId }); } catch (e) {}
+  try { if (chrome.debugger && chrome.debugger.detach) await chrome.debugger.detach({ tabId }); } catch (e) {}
 }
 
 // Documents to offer, THIS TAB'S JOB FIRST. That ordering is the whole point: the file you want is
@@ -339,7 +343,8 @@ async function autoAttachDocs(tabId, url, opts = {}) {
   // auto-upload silently did nothing at all — with no way to tell which of the two had failed.
   const armed = (await armedTabs()).has(tabId);
   let temporary = false;
-  if (!armed) {
+  const useCdp = typeof chrome !== "undefined" && chrome.debugger && chrome.debugger.attach;
+  if (useCdp && !armed) {
     try {
       await chrome.debugger.attach({ tabId }, "1.3");
       temporary = true;
@@ -350,13 +355,13 @@ async function autoAttachDocs(tabId, url, opts = {}) {
     }
   }
   try {
-    return await attachInner(tabId, url, marks, report, step);
+    return await attachInner(tabId, url, marks, report, step, useCdp);
   } finally {
     if (temporary) { try { await chrome.debugger.detach({ tabId }); } catch (e) {} }
   }
 }
 
-async function attachInner(tabId, url, marks, report, step) {
+async function attachInner(tabId, url, marks, report, step, useCdp) {
 
   let areas = [];
   try {
@@ -399,47 +404,45 @@ async function attachInner(tabId, url, marks, report, step) {
     // application. Inert attachment slots are already excluded by chooseUploadTargets.
     for (const target of plan.targets) {
     try {
-      // Resolve the node the SAME way the probe indexed it. The probe ran
-      // document.querySelectorAll in page JS; resolving via DOM.getDocument +
-      // DOM.querySelectorAll walks a different tree (it doesn't pierce shadow roots the way the
-      // page's own query does), so index N there is not index N here and the file lands in the
-      // wrong field or nowhere. Runtime.evaluate uses the page's own query, so the indices match
-      // by construction. This is the mechanism the Docs-tab attach has always used.
-      // Resolve by the stamp the probe left, walking shadow roots exactly as the probe did, so the
-      // node we fill is provably the node we classified.
-      const objRes = await dbg(tabId, "Runtime.evaluate", {
-        expression: rrDeepFindExpr(target.index), returnByValue: false,
-      });
-      const objectId = objRes && objRes.result && objRes.result.objectId;
-      if (!objectId) { step(`${kind}: upload field #${target.index + 1} vanished`); continue; }
-      await dbg(tabId, "DOM.setFileInputFiles", { files: [byKind[kind]], objectId });
-      await fpSleep(300);
-
-      // Confirming this is trickier than "is the file still on the input".
-      //
-      // An autofill uploader CONSUMES the file: Workday reads it, starts parsing, and swaps the
-      // drop zone for an "uploaded / processing" view, which removes the very input we stamped. So
-      // a missing node right after a successful set is evidence the page ACCEPTED the file, not
-      // that it refused it — reading it as failure is why a working upload reported "didn't
-      // attach". Three accepted signals, in order of directness.
       const fileName = String(byKind[kind]).split("/").pop();
-      const chk = await dbg(tabId, "Runtime.evaluate", {
-        expression: `(() => {
-          const el = ${rrDeepFindExpr(target.index)};
-          if (el) return (el.files || []).length > 0 ? "has-file" : "empty";
-          try {
-            const t = (document.body && document.body.innerText) || "";
-            if (t.indexOf(${JSON.stringify(fileName)}) >= 0) return "named-on-page";
-          } catch (e) {}
-          return "gone";
-        })()`,
-        returnByValue: true,
-      });
-      const verdict = (chk && chk.result && chk.result.value) || "unknown";
-      if (verdict === "has-file" || verdict === "gone" || verdict === "named-on-page") {
-        placed.push({ kind, mode: target.mode, verdict });
+      if (useCdp) {
+        // Resolve by the stamp the probe left, walking shadow roots exactly as the probe did, so the
+        // node we fill is provably the node we classified.
+        const objRes = await dbg(tabId, "Runtime.evaluate", {
+          expression: rrDeepFindExpr(target.index), returnByValue: false,
+        });
+        const objectId = objRes && objRes.result && objRes.result.objectId;
+        if (!objectId) { step(`${kind}: upload field #${target.index + 1} vanished`); continue; }
+        await dbg(tabId, "DOM.setFileInputFiles", { files: [byKind[kind]], objectId });
+        await fpSleep(300);
+
+        // An autofill uploader CONSUMES the file: Workday reads it, starts parsing, and swaps the
+        // drop zone for an "uploaded / processing" view, which removes the very input we stamped. So
+        // a missing node right after a successful set is evidence the page ACCEPTED the file, not
+        // that it refused it.
+        const chk = await dbg(tabId, "Runtime.evaluate", {
+          expression: `(() => {
+            const el = ${rrDeepFindExpr(target.index)};
+            if (el) return (el.files || []).length > 0 ? "has-file" : "empty";
+            try {
+              const t = (document.body && document.body.innerText) || "";
+              if (t.indexOf(${JSON.stringify(fileName)}) >= 0) return "named-on-page";
+            } catch (e) {}
+            return "gone";
+          })()`,
+          returnByValue: true,
+        });
+        const verdict = (chk && chk.result && chk.result.value) || "unknown";
+        if (verdict === "has-file" || verdict === "gone" || verdict === "named-on-page") {
+          placed.push({ kind, mode: target.mode, verdict });
+        } else {
+          step(`${kind}: the page cleared the field (${verdict})`);
+        }
       } else {
-        step(`${kind}: the page cleared the field (${verdict})`);
+        const r = await rrPlaceFileBlob(tabId, target.index, byKind[kind]);
+        await fpSleep(300);
+        if (r.ok) placed.push({ kind, mode: target.mode, verdict: "has-file" });
+        else step(`${kind}: ${r.error || "the page rejected the file"}`);
       }
     } catch (e) {
       step(`${kind}: ${String((e && e.message) || e).slice(0, 60)}`);

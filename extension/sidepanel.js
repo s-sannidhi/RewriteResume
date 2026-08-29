@@ -355,9 +355,8 @@ function renderJobLinks(host, trackerId, hasCoverLetter) {
   host.append(which, row, attachStatus);
 }
 
-// Put this job's PDF into the page's file-upload input via the debugger API — file pickers
-// can't be filled by normal JS. Finds inputs across iframes/shadow roots and prefers the one
-// whose attributes mention resume/cv (or cover). Never submits anything.
+// Put this job's PDF into the page's file-upload input. Prefers a field whose label mentions
+// resume/cv (or cover). Never submits anything.
 async function attachFile(trackerId, kind) {
   const tab = await activeTab();
   if (!tab || !isWebUrl(tab.url)) throw new Error("open the application page first");
@@ -367,42 +366,23 @@ async function attachFile(trackerId, kind) {
                                  : (rec.pdf_filename || "resume.pdf");
   const path = `${rec.folder}/${fname}`;
 
-  const target = { tabId: tab.id };
-  const acq = await rrCdpAcquire(tab.id);
-  if (!acq.ok) throw new Error(acq.error);
-  try {
-    const { root } = await chrome.debugger.sendCommand(target, "DOM.getDocument",
-      { depth: -1, pierce: true });
-    const candidates = [];
-    (function walk(n) {
-      if (!n) return;
-      if (n.nodeName === "INPUT") {
-        const attrs = {};
-        const a = n.attributes || [];
-        for (let i = 0; i + 1 < a.length; i += 2) attrs[a[i].toLowerCase()] = a[i + 1];
-        if ((attrs.type || "").toLowerCase() === "file") candidates.push({ nodeId: n.nodeId, attrs });
-      }
-      (n.children || []).forEach(walk);
-      if (n.contentDocument) walk(n.contentDocument);
-      (n.shadowRoots || []).forEach(walk);
-    })(root);
-    if (!candidates.length) throw new Error("no file-upload field found on this page");
+  const listed = await cdpListFileInputs(tab);
+  if (!listed.ok) throw new Error(listed.error || "couldn't read the page");
+  const inputs = listed.inputs || [];
+  if (!inputs.length) throw new Error("no file-upload field found on this page");
 
-    const want = kind === "cover" ? /cover/i : /resume|cv\b/i;
-    const avoid = kind === "cover" ? /resume|cv\b/i : /cover/i;
-    const score = (c) => {
-      const s = Object.entries(c.attrs).map(([k, v]) => k + "=" + v).join(" ");
-      return (want.test(s) ? 2 : 0) - (avoid.test(s) ? 2 : 0);
-    };
-    candidates.sort((x, y) => score(y) - score(x));
-    await chrome.debugger.sendCommand(target, "DOM.setFileInputFiles",
-      { files: [path], nodeId: candidates[0].nodeId });
-    return `Attached ${fname}` + (candidates.length > 1
-      ? ` (picked the most ${kind}-looking of ${candidates.length} upload fields — verify on the page).`
-      : " — verify it shows on the page.");
-  } finally {
-    await rrCdpRelease(tab.id);
-  }
+  const want = kind === "cover" ? /cover/i : /resume|cv\b/i;
+  const avoid = kind === "cover" ? /resume|cv\b/i : /cover/i;
+  const score = (c) => {
+    const s = `${c.kind || ""} ${c.label || ""}`;
+    return (want.test(s) ? 2 : 0) - (avoid.test(s) ? 2 : 0);
+  };
+  const ranked = [...inputs].sort((a, b) => score(b) - score(a));
+  const res = await cdpSetFileInput(tab, ranked[0].i, path);
+  if (!res.ok) throw new Error(res.error || "couldn't place the file");
+  return `Attached ${fname}` + (inputs.length > 1
+    ? ` (picked the most ${kind}-looking of ${inputs.length} upload fields — verify on the page).`
+    : " — verify it shows on the page.");
 }
 
 // Render the "which experience + how did you use it" form for weaving a skill in.
