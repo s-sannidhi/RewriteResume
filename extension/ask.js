@@ -98,6 +98,7 @@
       // hasn't changed. Match on the id first, then fall back to the question text itself.
       const [disc] = await chrome.scripting.executeScript({
         target: { tabId: tab.id }, func: rrDiscoverFields });
+      if (disc && disc.error) throw new Error(disc.error.message || String(disc.error));
       const fields = (disc && disc.result) || [];
       const want = normLab(target && target.label);
       let f = fields.find((x) => target && x.id === target.fieldId && normLab(x.label) === want);
@@ -262,6 +263,7 @@
       if (!tab || !isWebUrl(tab.url)) { setAsk("Open the application page in that tab first.", "err"); return finish(); }
       const [disc] = await chrome.scripting.executeScript({
         target: { tabId: tab.id }, func: rrDiscoverFields });
+      if (disc && disc.error) throw new Error(disc.error.message || String(disc.error));
       const fields = (disc && disc.result) || [];
       if (!fields.length) { setAsk("No form fields found on that page.", "err"); return finish(); }
 

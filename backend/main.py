@@ -31,10 +31,11 @@ app = FastAPI(title="Resume Rewriter v2", docs_url="/docs")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 # The panel is the only remote caller. /email/send makes a wildcard origin a real drive-by
-# hole, so only chrome-extension:// origins get CORS (the /app editor is same-origin anyway).
+# hole, so only extension origins get CORS (the /app editor is same-origin anyway).
+# Chrome: chrome-extension://<id>  Firefox: moz-extension://<uuid>
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"chrome-extension://.*",
+    allow_origin_regex=r"(chrome|moz)-extension://.*",
     allow_methods=["*"],
     allow_headers=["*"],
 )

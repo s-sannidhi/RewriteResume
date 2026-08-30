@@ -105,6 +105,7 @@
     flash(btn, "Filling…", 60000);
     try {
       const [disc] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: rrDiscoverFields });
+      if (disc && disc.error) throw new Error(disc.error.message || String(disc.error));
       const fields = (disc && disc.result) || [];
       if (!fields.length) {
         setSt("No fillable fields found on this page.", "err");
@@ -133,6 +134,7 @@
         const [inj] = await chrome.scripting.executeScript({
           target: { tabId: tab.id }, world: "MAIN", func: rrApplyActionsReact, args: [toApply],
         });
+        if (inj && inj.error) throw new Error(inj.error.message || String(inj.error));
         results = (inj && inj.result) || [];
       }
 

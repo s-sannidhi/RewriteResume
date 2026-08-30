@@ -13,9 +13,12 @@
 
 function rrDiscoverFields() {
   const isVisible = (el) => {
+    // Don't use offsetParent: Firefox returns null for position:fixed and for children of
+    // display:contents, which made whole Workday/Ashby sections look empty.
     const r = el.getBoundingClientRect();
-    return !(r.width === 0 && r.height === 0) && el.offsetParent !== null &&
-      getComputedStyle(el).visibility !== "hidden";
+    if (r.width === 0 && r.height === 0) return false;
+    const s = getComputedStyle(el);
+    return s.visibility !== "hidden" && s.display !== "none";
   };
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
 
