@@ -188,10 +188,65 @@ function projFields(it) {
   return el("div", {}, g, wide);
 }
 
+function loginCard() {
+  const login = profile.login_credentials ||= {};
+  if (!(login.email || "").trim()) login.email = (profile.identity || {}).email || "";
+  const g = el("div", { class: "grid" });
+  g.append(field("Login email", textControl(login, "email")));
+
+  const status = el("div", { class: "hint" }, "Checking stored password…");
+  const pwInput = el("input", {
+    type: "password", placeholder: "Type a new password", autocomplete: "new-password",
+  });
+  const btn = el("button", {}, "Update password");
+
+  async function refreshStatus() {
+    try {
+      const d = await (await fetch(`${API}/secrets/login`)).json();
+      status.textContent = d.set
+        ? `A password is stored in the ${d.backend || "credential store"}. Type a new one below to replace it.`
+        : "No password saved yet. Autofill and the My Info copy tile will use whatever you save here.";
+    } catch (e) {
+      status.textContent = "Couldn't reach the backend to check the stored password.";
+    }
+  }
+
+  btn.addEventListener("click", async () => {
+    const pw = (pwInput.value || "").trim();
+    if (!pw) { toast("Type a password first"); return; }
+    btn.disabled = true;
+    try {
+      const r = await fetch(`${API}/secrets/login`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (!r.ok) {
+        let msg = "HTTP " + r.status;
+        try { const j = await r.json(); msg = j.detail || msg; } catch (e) {}
+        throw new Error(msg);
+      }
+      pwInput.value = "";
+      toast("Login password saved ✓");
+      refreshStatus();
+    } catch (e) { toast("Failed: " + e.message); }
+    finally { btn.disabled = false; }
+  });
+  pwInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); btn.click(); }
+  });
+  refreshStatus();
+  return card("Job-site login",
+    "Email and password used to sign into Workday, Greenhouse, Lever, and other application sites. The password is stored in your OS credential store — never in profile.json. Email is saved with Save profile; password saves immediately.",
+    g,
+    field("Password", el("div", {}, status, pwInput,
+      el("div", { class: "add-row", style: "margin-top:8px" }, btn))));
+}
+
 // ---------- app ----------
 const SECTIONS = [
   { name: "Identity", fn: () => flatCard("Identity", "Names, contact, links.", profile.identity ||= {},
       ["legal_name", "preferred_name", "pronouns", "email", "phone", "location", "street_address", "zip", "linkedin", "github", "portfolio"]) },
+  { name: "Login", fn: loginCard },
   { name: "Work Auth", fn: () => flatCard("Work Auth & Demographics", "Used for autofill of EEO/work-authorization questions.",
       profile.work_auth ||= {}, ["us_work_auth_status", "needs_sponsorship", "veteran_status", "disability_status", "gender", "security_clearance", "lgbtq_self_id"]) },
   { name: "Skills", fn: skillsCard },
@@ -400,8 +455,12 @@ async function load() {
 }
 async function save() {
   const btn = document.getElementById("save"); btn.disabled = true; btn.textContent = "Saving…";
+  const payload = { ...profile };
+  if (payload.login_credentials) {
+    payload.login_credentials = { ...payload.login_credentials, password: "" };
+  }
   try {
-    const r = await fetch(`${API}/profile`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) });
+    const r = await fetch(`${API}/profile`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!r.ok) throw new Error(await r.text());
     toast("Saved ✓");
   } catch (e) { toast("Save failed: " + e.message); }

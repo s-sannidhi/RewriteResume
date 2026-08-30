@@ -122,6 +122,24 @@ def login_password(profile: dict) -> str | None:
     return get_secret(SERVICE_LOGIN, login_account(profile), "RR_LOGIN_PASSWORD")
 
 
+def set_login_password(profile: dict, password: str) -> bool:
+    """Store the job-site login password in the OS credential store. Never writes profile.json."""
+    pw = (password or "").strip()
+    if not pw:
+        return False
+    return set_secret(SERVICE_LOGIN, login_account(profile), pw)
+
+
+def redact_login_password(profile: dict) -> dict:
+    """Copy with any plaintext login password stripped — GET /profile must never return one."""
+    login = profile.get("login_credentials")
+    if not isinstance(login, dict) or not login.get("password"):
+        return profile
+    out = dict(profile)
+    out["login_credentials"] = {**login, "password": ""}
+    return out
+
+
 def scrub_profile(profile: dict) -> tuple[dict, bool]:
     """If the profile carries a plaintext login password, move it to the Keychain and strip it.
     Returns (profile, changed)."""

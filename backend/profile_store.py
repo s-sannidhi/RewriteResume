@@ -47,6 +47,7 @@ BLANK_PROFILE: dict = {
         "background_check_consent", "drug_test_consent", "criminal_conviction",
         "criminal_detail")},
     "application_languages": [],
+    "login_credentials": {"email": ""},
 }
 
 

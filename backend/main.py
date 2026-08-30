@@ -101,7 +101,7 @@ def health():
 
 @app.get("/profile")
 def get_profile():
-    return profile_store.load()
+    return secrets.redact_login_password(profile_store.load())
 
 
 @app.put("/profile")
@@ -112,6 +112,42 @@ def put_profile(profile: dict = Body(...)):
     profile, _ = secrets.scrub_profile(profile)
     profile_store.save(profile)
     return {"ok": True}
+
+
+class LoginPasswordIn(BaseModel):
+    password: str
+
+
+@app.get("/secrets/login")
+def get_login_secret():
+    """Whether a job-site login password is stored — never the value itself."""
+    profile = profile_store.load()
+    return {
+        "set": bool(secrets.login_password(profile)),
+        "email": secrets.login_account(profile),
+        "backend": secrets.backend_name(),
+    }
+
+
+@app.get("/secrets/login/value")
+def get_login_secret_value():
+    """The actual password, for the extension's click-to-copy tile. Local-only."""
+    return {"password": secrets.login_password(profile_store.load()) or ""}
+
+
+@app.put("/secrets/login")
+def put_login_secret(body: LoginPasswordIn):
+    """Replace the job-site login password in the OS credential store."""
+    pw = (body.password or "").strip()
+    if not pw:
+        raise HTTPException(status_code=400, detail="password is empty")
+    profile = profile_store.load()
+    if not secrets.set_login_password(profile, pw):
+        raise HTTPException(
+            status_code=500,
+            detail="could not store the password in " + secrets.backend_name(),
+        )
+    return {"ok": True, "backend": secrets.backend_name()}
 
 
 # --- JD (read from the page by the extension; never pasted) -------------------

@@ -2,15 +2,6 @@
 // Re-fetched from the backend on EVERY show, so edits made at /app appear immediately.
 (() => {
 
-  // ===================================================================================
-  //  YOUR JOB-SITE LOGIN PASSWORD — put it between the quotes below.
-  //  It is shown only as dots in the panel; the real value is used solely to copy/paste
-  //  when YOU click the tile. Leave it "" to hide the tile entirely.
-  //  (Note: this file is plain text on your Mac. Don't share the extension folder or
-  //   commit this line to git while it's filled in.)
-  const LOGIN_PASSWORD = "286945()*&CdC";
-  // ===================================================================================
-
   async function copyText(v) {
     try { await navigator.clipboard.writeText(v); return true; }
     catch (e) {
@@ -82,21 +73,85 @@
     return nav;
   }
 
-  // Masked tile for the job-site login password. Always shows dots; on click it copies the
-  // real value (from LOGIN_PASSWORD above) and arms the click-to-paste. Hidden if unset.
-  function passwordTile() {
-    if (!LOGIN_PASSWORD) return null;
+  async function fetchLoginPassword() {
+    try {
+      const r = await fetch(`${API}/secrets/login/value`);
+      if (!r.ok) return "";
+      const d = await r.json();
+      return (d.password || "").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // Masked copy tile when a password is stored; otherwise (or on Change) an editor that PUTs
+  // the new value to the Keychain via the backend. Never hardcoded in this file.
+  function passwordTile(initialPw) {
     const LABEL = "Login password (job sites)";
-    const lab = el("span", { class: "t-label" }, LABEL);
-    const t = el("button", { class: "tile" }, lab, el("span", { class: "t-value" }, "••••••••••••"));
-    t.addEventListener("click", async () => {
-      await copyText(LOGIN_PASSWORD);
-      const armed = await armPaste(LOGIN_PASSWORD);
-      t.classList.add("copied");
-      lab.textContent = armed ? "✓ copied — click the password field" : "✓ copied";
-      setTimeout(() => { t.classList.remove("copied"); lab.textContent = LABEL; }, 2600);
-    });
-    return t;
+    const wrap = el("div", { class: "pw-wrap" });
+    let current = initialPw || "";
+    let editing = !current;
+
+    function render() {
+      wrap.innerHTML = "";
+      if (!editing) {
+        const lab = el("span", { class: "t-label" }, LABEL);
+        const t = el("button", { class: "tile" }, lab,
+          el("span", { class: "t-value" }, "••••••••••••"));
+        t.addEventListener("click", async () => {
+          await copyText(current);
+          const armed = await armPaste(current);
+          t.classList.add("copied");
+          lab.textContent = armed ? "✓ copied — click the password field" : "✓ copied";
+          setTimeout(() => { t.classList.remove("copied"); lab.textContent = LABEL; }, 2600);
+        });
+        const change = el("button", { class: "small", style: "margin-top:6px" }, "Change password");
+        change.addEventListener("click", () => { editing = true; render(); });
+        wrap.append(t, change);
+        return;
+      }
+      const input = el("input", {
+        type: "password",
+        placeholder: current ? "New password" : "Set a job-site login password",
+        autocomplete: "new-password",
+      });
+      const saveBtn = el("button", { class: "small primary" }, "Save");
+      const cancelBtn = current ? el("button", { class: "small" }, "Cancel") : null;
+      const st = el("div", { class: "hint", style: "margin-top:4px" },
+        "Saved in the Keychain. Click the tile to copy/paste into login forms.");
+      const doSave = async () => {
+        const pw = (input.value || "").trim();
+        if (!pw) { st.textContent = "Type a password first."; st.className = "status err"; return; }
+        saveBtn.disabled = true;
+        try {
+          const r = await fetch(`${API}/secrets/login`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pw }),
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          current = pw;
+          editing = false;
+          render();
+        } catch (e) {
+          st.textContent = "Couldn't save — is ./run.sh running?";
+          st.className = "status err";
+        } finally { saveBtn.disabled = false; }
+      };
+      saveBtn.addEventListener("click", doSave);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); doSave(); }
+        if (e.key === "Escape" && current) { editing = false; render(); }
+      });
+      if (cancelBtn) cancelBtn.addEventListener("click", () => { editing = false; render(); });
+      wrap.append(
+        el("div", { class: "k", style: "font-size:12.5px;margin-top:6px" }, LABEL),
+        input,
+        el("div", { class: "btn-row", style: "margin-top:6px" }, saveBtn, cancelBtn),
+        st);
+      setTimeout(() => input.focus(), 0);
+    }
+    render();
+    return wrap;
   }
 
   const nice = (s) => (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -247,6 +302,7 @@
       st.className = "status muted";
       st.textContent = "Master profile bullets (no résumé generated for the current tab yet).";
     }
+    const loginPw = await fetchLoginPassword();
     const id = p.identity || {};
     const [first, middle, last] = nameParts(id.legal_name);
     const [city, state] = (id.location || "").includes(",")
@@ -257,7 +313,7 @@
     // the stable id "mi-education" so the jump-nav can target it.
     const sections = [
       ["mi-essentials", "Essentials", withId("mi-essentials", section("⭐ Essentials",
-        tile("Email", id.email), passwordTile(),
+        tile("Email", id.email), passwordTile(loginPw),
         tile("LinkedIn", id.linkedin), tile("GitHub", id.github), tile("Portfolio", id.portfolio),
         ...otherLinkTiles(id.other_links)))],
       ["mi-address", "Address", withId("mi-address", section("📍 Address",
