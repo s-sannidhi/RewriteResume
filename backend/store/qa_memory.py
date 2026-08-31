@@ -34,7 +34,15 @@ def recall(question: str, field_type: str | None = None, threshold: float | None
                         "field_type": r["field_type"], "similarity": 1.0,
                         "usage_count": r["usage_count"]}
 
-    qv = embeddings.embed(question)  # symmetric 'classification' on both sides
+    if not rows:
+        return None
+    try:
+        qv = embeddings.embed(question)  # symmetric 'classification' on both sides
+    except Exception as e:
+        # Ollama down / embedder missing — Ask and autofill must still work from profile +
+        # exact-label memory. Semantic paraphrase recall resumes when Ollama is back.
+        print(f"qa_memory.recall: embeddings unavailable ({e}); lexical-only", flush=True)
+        return None
     best, best_sim = None, 0.0
     for r in rows:
         if not (r["answer"] or "").strip():
@@ -71,7 +79,11 @@ def save(question: str, answer: str, field_type: str | None = None) -> dict:
     existing = c.execute(
         "SELECT id FROM qa_memory WHERE question = ?", (question,)
     ).fetchone()
-    emb = json.dumps(embeddings.embed(question))
+    try:
+        emb = json.dumps(embeddings.embed(question))
+    except Exception as e:
+        print(f"qa_memory.save: embeddings unavailable ({e}); saving without vector", flush=True)
+        emb = "[]"
     if existing:
         c.execute(
             "UPDATE qa_memory SET answer=?, field_type=?, embedding=? WHERE id=?",

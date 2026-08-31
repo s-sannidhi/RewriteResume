@@ -319,4 +319,12 @@ def answer_page(fields: list[dict], profile: dict | None = None, jd: dict | None
     """Resolve a whole page/step at once. Fast-path fields are instant. With no_ai=True nothing hits
     the LLM at all — free-text is left blank for the user. (The extension calls this on Autofill.)"""
     profile = profile or profile_store.load()
-    return [answer(f, profile, jd, no_ai=no_ai) for f in fields]
+    out = []
+    for f in fields:
+        try:
+            out.append(answer(f, profile, jd, no_ai=no_ai))
+        except Exception as e:
+            # One field must not 500 the whole page (e.g. Ollama refused while recalling memory).
+            out.append(_act(f, "unknown", "skip", "none", 0.0, needs_review=True,
+                            reason=f"resolver error: {e}"))
+    return out
